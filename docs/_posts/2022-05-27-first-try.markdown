@@ -28,7 +28,8 @@ Now let's understand each one of them
 
 # Digging into AWS Services
 <img src="/images/digging.jpg">
-Note: am listening 🎵 to Coldbones(Extinct)(https://open.spotify.com/track/4RL6etpTBSFDpOLUttOwgz?si=cfc57d55dbf94286)
+Note: am listening 🎵 to 
+<iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/4RL6etpTBSFDpOLUttOwgz?utm_source=generator" width="100%" height="380" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
 
 ## What is ECS
 here is a challenge for you, type "aws ecs" into Google and try to read some articles, and let's compare our thoughts, wouldn't that be great ?!
@@ -47,7 +48,8 @@ I think this is what we're looking for, but let's not rush and look for other Se
 
 
 ## What is Beanstalk
-Note: Song Changed 🎵 PYLOT(Engime)(https://open.spotify.com/track/1i3F8GA8NrSkvUi7LSkacK?si=3b74d6dc5f994b05)
+Note: Song Changed 🎵 
+<iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/1i3F8GA8NrSkvUi7LSkacK?utm_source=generator" width="100%" height="380" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
 
 Let's repeat the previous process, I will search for "aws beanstalk".
 Here are the articles that I read:
@@ -68,7 +70,9 @@ okay, let's compare both services.
 ## ECS and Beanstalk are they twins ?
 <img src="/images/twin.jpg">
 
-Note: Song Changed 🎵 pg.lost(The Headless Man)(https://open.spotify.com/track/5QFUIZvOVi5QqUUCUsu7ui?si=c4d278dfd78849ee) "this one is my favorite from pg.lost"
+Note: Song Changed 🎵 
+<iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/5QFUIZvOVi5QqUUCUsu7ui?utm_source=generator" width="100%" height="380" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+"this one is my favorite from pg.lost"
 
 The source I read from:
 - https://www.qovery.com/blog/deploying-containers-on-aws-elastic-beanstalk-vs-ecs-vs-eks
