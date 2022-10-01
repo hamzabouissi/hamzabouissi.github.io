@@ -4,10 +4,9 @@ title:  "Learning To Deploy Cloud Native Apps, First Week"
 date:   2022-05-29 21:20:09 +0100
 categories: Cloud-Native apps on AWS
 tags: AWS, Cloud, apps,ECS, Beanstalk
-author: hamza bou issa
 ---
 
-<img src="/assets/img/img-1.jpg">
+<img src="/images/img-1.jpg">
 
 # Introduction
 In this article I will describe the way I took to deploy my local container app as a cloud-native app on AWS, I will be describing my thoughts and my mistakes.
@@ -21,7 +20,7 @@ Well I have a lot of questions dancing on my mind, like:
 Well, it seems at first I will ask our savior "Google".
 **Google ma Man** "how to deploy the container on AWS"
 
-<img src="/assets/img/search-engine-search-how-to-deploy-container.png">
+<img src="/images/search-engine-search-how-to-deploy-container.png">
 
 Without reading every article, seemingly there are 3 AWS Services that interest us: ECS, AWS Beanstalk, and Fargate. okito, so the first question answered
 - [x] It seems AWS Services have a lot of services to offer, which is suitable for our case.
@@ -30,7 +29,7 @@ Now let's understand each one of them
 
 
 # Digging into AWS Services
-<img src="/assets/img/digging.jpg">
+<img src="/images/digging.jpg">
 Note: am listening 🎵 to 
 <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/4RL6etpTBSFDpOLUttOwgz?utm_source=generator" width="100%" height="380" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
 
@@ -71,7 +70,7 @@ mon ami, I have a question, "But aren't they seemed the same?"<br>
 okay, let's compare both services.
 
 ## ECS and Beanstalk are they twins ?
-<img src="/assets/img/twin.jpg">
+<img src="/images/twin.jpg">
 
 Note: Song Changed 🎵 
 <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/5QFUIZvOVi5QqUUCUsu7ui?utm_source=generator" width="100%" height="380" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
