@@ -11,7 +11,7 @@ author: hamza bou issa
 
 A day before choosing his new destiny, the wooden house was empty, the rats were digging the floor searching for a single grain of wheat, a breeze of wind fighting to extinguish the flames, that flames were warming his body while imaging his new destination, he was lying on the dry grass, hands crossed behind his gaunt face, looking at the sky while he paints how life can get better after reaching his wonderland.
 
-A land where corn is everywhere, cows and milk, sheep and wool, neighbors to talk to, and a fair ruler to protect his people from thieves, but his smile was interrupted by travelers' stories about the road.
+A land where rice is everywhere, cows and milk, sheep and wool, neighbors to talk to, and a fair ruler to protect his people from thieves, but his smile was interrupted by travelers' stories about the road.
 
 A road full of hideous and scary monsters, plenty of robbers. The fear rushed to seed the pessimistic thoughts into his imagination. Not enough food to feed him during the journey, he wasn't a good sword man to fight the Bandits, and he lacked knowledge about the road.
 
@@ -21,7 +21,7 @@ After shuffling his mind, he stood up clenching his fists saying to himself: "I'
 
 Before committing to a long journey, I must understand myself first, I must understand my strength and weakness.
 
-To start with my strong points, I have already good experience building services with AWS, I created an open-source project to challenge myself to learn AWS, also I was a Backend developer and I know some of the scripting languages like Bash, C#, Python, I have a good English to read articles and a good searching skills for the problems.
+To start with my strong points, I have already good experience building services with AWS, I created an open-source project to challenge myself to learn AWS, also I was a Backend developer and I know some of the scripting languages like Bash, C#, Python, I'm competent enough in English to read articles and a good searching skills for the problems.
 
 Now discussing my weakness, I sometimes get wrong prioritizing my tasks or splitting them into small ones, also my imagination plays a big role in feeding my ideas, but this can prevent me from moving and looking too far from my steps.
 
@@ -47,10 +47,10 @@ So the result of my searching ended up choosing  <a href="https://aws.github.io/
 from setting up infra to deploying containers to ECS 
 
 
-# Conslusion
+# Conclusion
 
 
 
-# What We Gonna Do Next
+# What will be doing next 
 
 He stepped out of his house back warding while keep looking at his house, he was holding his tears after the memories splashed into his eyes, he swept his tears, saying: "sorry, but it's for the family, dad"
