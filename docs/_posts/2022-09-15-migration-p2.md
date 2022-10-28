@@ -36,3 +36,14 @@ The traveler was sitting alone under a tree in front of the house, singing until
 - thanks, I got tired, am going to sleep , good night
 
 He awaked the hidden feeling inside him...
+
+
+<div class="PageNavigation">
+  {% if page.previous.url %}
+    <a class="prev" href="{{page.previous.url}}">&laquo; {{page.previous.title}}</a>
+  {% endif %}
+  {% if page.next.url %}
+    <br>
+    <a class="next" href="{{page.next.url}}">{{page.next.title}} &raquo;</a>
+  {% endif %}
+</div>

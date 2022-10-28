@@ -33,7 +33,7 @@ Studying the journey path and needs is a must, so I took the time to set and thi
 
 One of the key points of the migration is GCP, we already have services running there, so having some knowledge about GCP's current workflow (CI/CD, Maintaining VMs,…) is a must, which is something I currently lack.
 
-On the other side, I'm limited by time therefore I need to deploy a test version of the application as fast as possible, this will result in not letting me understand every service deeply.
+On the other side, I'm limited by time therefore I need to deploy a test version of the application as fast as possible which will prevent me from understanding every service thoroughly.
 
 Finally, I must expect that there are no exact alternatives for GCP's services on AWS and some implementations on AWS have problems(lack of proper examples on documentation,...)
 
@@ -47,10 +47,14 @@ So the result of my searching ended up choosing  <a href="https://aws.github.io/
 from setting up infra to deploying containers to ECS 
 
 
-# Conclusion
-
-
-
 # What will be doing next 
 
 He stepped out of his house back warding while keep looking at his house, he was holding his tears after the memories splashed into his eyes, he swept his tears, saying: "sorry, but it's for the family, dad"
+
+
+
+<div class="PageNavigation">
+  {% if page.next.url %}
+    <a class="next" href="{{page.next.url}}">{{page.next.title}} &raquo;</a>
+  {% endif %}
+</div>

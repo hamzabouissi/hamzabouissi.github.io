@@ -8,3 +8,17 @@ author: hamza bou issa
 ---
 
 <img src="/assets/img/departure-chapt-3.jpg">
+
+
+
+
+
+<div class="PageNavigation">
+  {% if page.previous.url %}
+    <a class="prev" href="{{page.previous.url}}">&laquo; {{page.previous.title}}</a>
+  {% endif %}
+  {% if page.next.url %}
+    <br>
+    <a class="next" href="{{page.next.url}}">{{page.next.title}} &raquo;</a>
+  {% endif %}
+</div>
