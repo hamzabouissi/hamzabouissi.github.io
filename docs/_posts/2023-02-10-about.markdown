@@ -1,0 +1,24 @@
+---
+layout: post
+title: About this blog
+date: '2023-02-10 20:34:06'
+tags:
+- hash-import-2023-02-22-23-55
+---
+
+### Who am I 
+
+My Name is Hamza, I'm 23yo, and I started discovering IT since 17, I worked as Backend Developer for a few years then I shifted to DevOps for expanding my knowledge and it was my dream to create and design architecture.
+
+My journey began when &nbsp;I tried to create an open-source([Fissaa](https://github.com/hamzabouissi/fissaa)) tool that helps developers deploy their container on AWS (opponent to AWS copilot), It was a pleasant experience discovering the first time AWS Services.
+
+Then I got recruited as DevOps Consultant with [pengguin](pengguin.com) 🐧where I was responsible for migrating the current stack using copilot from GCP -\> AWS &nbsp;and optimizing the resources for the lowest cost. The job at pengguin has opened my eye to many caveats and optimization hacks and to where AWS Services reaches its limit.
+
+Now here I'm sharing my little experience with IT(DevOps, Python, C#) in general, I will be sharing my mistakes, my way of thinking, and the solution.
+
+Hope you enjoy The Journey 🚣
+
+[LinkedIn](https://www.linkedin.com/in/hamza-b-aa9377106/)
+
+[Github](https://github.com/hamzabouissi)
+
