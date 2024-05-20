@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Technology on chown u&#43;r mind</title>
+    <link>http://localhost:1313/tags/technology/</link>
+    <description>Recent content in Technology on chown u&#43;r mind</description>
+    <image>
+      <title>chown u&#43;r mind</title>
+      <url>http://localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>http://localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+    </image>
+    <generator>Hugo -- 0.126.1</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 10 Feb 2023 21:17:12 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/technology/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Deployment Preview with AWS CloudFront</title>
+      <link>http://localhost:1313/posts/2023-02-10-deployment-preview-with-aws-cloudfront/</link>
+      <pubDate>Fri, 10 Feb 2023 21:17:12 +0000</pubDate>
+      <guid>http://localhost:1313/posts/2023-02-10-deployment-preview-with-aws-cloudfront/</guid>
+      <description>Introduction Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.
+With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.
+In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.</description>
+    </item>
+  </channel>
+</rss>

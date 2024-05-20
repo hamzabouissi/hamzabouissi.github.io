@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Cloudformation on chown u&#43;r mind</title>
+    <link>//localhost:1313/tags/cloudformation/</link>
+    <description>Recent content in Cloudformation on chown u&#43;r mind</description>
+    <image>
+      <title>chown u&#43;r mind</title>
+      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+    </image>
+    <generator>Hugo -- 0.126.1</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 16 Apr 2023 16:05:46 +0100</lastBuildDate>
+    <atom:link href="//localhost:1313/tags/cloudformation/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>GCP -&gt; AWS Migration: Determination</title>
+      <link>//localhost:1313/posts/2023-04-10-determination/</link>
+      <pubDate>Sun, 16 Apr 2023 16:05:46 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-04-10-determination/</guid>
+      <description>You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused.</description>
+    </item>
+  </channel>
+</rss>

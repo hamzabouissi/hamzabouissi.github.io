@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>chown u&#43;r mind</title>
+    <link>//localhost:1313/</link>
+    <description>Recent content on chown u&#43;r mind</description>
+    <image>
+      <title>chown u&#43;r mind</title>
+      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+    </image>
+    <generator>Hugo -- 0.126.1</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 19 May 2023 16:14:49 +0100</lastBuildDate>
+    <atom:link href="//localhost:1313/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>GCP -&gt; AWS Migration: Hide Your Secrets</title>
+      <link>//localhost:1313/posts/2023-04-10-hide-your-secrets/</link>
+      <pubDate>Fri, 19 May 2023 16:14:49 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-04-10-hide-your-secrets/</guid>
+      <description>HIDING</description>
+    </item>
+    <item>
+      <title>GCP -&gt; AWS Migration: Confession</title>
+      <link>//localhost:1313/posts/2023-04-10-confession/</link>
+      <pubDate>Tue, 25 Apr 2023 16:12:38 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-04-10-confession/</guid>
+      <description>(Knock on the door)
+(door opens)(some background noise of the company like people shatter or talk)
+Yeah, Come In
+Hey
+Hey
+Hey, my Junior friend, have a seat.
+Thanks
+It&amp;rsquo;s been 2 weeks since I assigned you the project, how it&amp;rsquo;s going?
+Good, I&amp;rsquo;m doing good, I just finished a few tasks and as you asked about my progress.
+So, can you tell me how much progress you have made?</description>
+    </item>
+    <item>
+      <title>GCP -&gt; AWS Migration: Stress Swallows You</title>
+      <link>//localhost:1313/posts/2023-04-10-stress-swallows-you/</link>
+      <pubDate>Thu, 20 Apr 2023 15:36:32 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-04-10-stress-swallows-you/</guid>
+      <description>3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.
+So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database .</description>
+    </item>
+    <item>
+      <title>GCP -&gt; AWS Migration: Determination</title>
+      <link>//localhost:1313/posts/2023-04-10-determination/</link>
+      <pubDate>Sun, 16 Apr 2023 16:05:46 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-04-10-determination/</guid>
+      <description>You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused.</description>
+    </item>
+    <item>
+      <title>GCP -&gt; AWS Migration: The Search</title>
+      <link>//localhost:1313/posts/2023-04-10-the-search/</link>
+      <pubDate>Wed, 12 Apr 2023 15:28:36 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-04-10-the-search/</guid>
+      <description>Key points wake up with an email deciding not to go to the workspace read the task description and start searching lay on the bed again, thinking of ways to approach the problem get up and write his thoughts in his journal Search again and find copilot as a solution his alarm bumps for taking a walk It&amp;rsquo;s 8:35 AM, and the phone started vibrating with notifications, he used to receive the &amp;ldquo;Good Morning Babe&amp;rdquo; message from his girlfriend with a few newsletters emails, but this time, it was an email on his Zoho mail with the Subject: [JIRA] Yassine assigned DEV-550 to you</description>
+    </item>
+    <item>
+      <title>GCP -&gt; AWS Migration: The Beginning</title>
+      <link>//localhost:1313/posts/2023-04-10-the-beginning/</link>
+      <pubDate>Mon, 10 Apr 2023 15:25:26 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-04-10-the-beginning/</guid>
+      <description>Key Points: the boy is still an amateur, this is his first experience of him with DevOps the boy lacks some social skills the Startup CEO calls him he got the task of migrating the stack from GCP to AWS he returns confused and scared of not finding a solution then he goes back home, locks the room door and Lay on the bed imagining the way He was standing in front of the Nespresso machine, waiting for his daily caffeine fix, but his ears were inadvertently eavesdropping on the conversation of his two colleagues.</description>
+    </item>
+    <item>
+      <title>Deployment Preview with AWS CloudFront</title>
+      <link>//localhost:1313/posts/2023-02-10-deployment-preview-with-aws-cloudfront/</link>
+      <pubDate>Tue, 10 Jan 2023 11:39:04 +0100</pubDate>
+      <guid>//localhost:1313/posts/2023-02-10-deployment-preview-with-aws-cloudfront/</guid>
+      <description>Introduction Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.
+With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.
+In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.</description>
+    </item>
+  </channel>
+</rss>
