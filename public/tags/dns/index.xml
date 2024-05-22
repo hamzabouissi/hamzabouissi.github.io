@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Dns on chown u&#43;r mind</title>
+    <link>//localhost:1313/tags/dns/</link>
+    <description>Recent content in Dns on chown u&#43;r mind</description>
+    <image>
+      <title>chown u&#43;r mind</title>
+      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+    </image>
+    <generator>Hugo -- 0.126.1</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 20 May 2023 16:12:38 +0100</lastBuildDate>
+    <atom:link href="//localhost:1313/tags/dns/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Deploying gitea into kubernetes with custom domain</title>
+      <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
+      <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
+      <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
+      <description>Introudction Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</description>
+    </item>
+  </channel>
+</rss>

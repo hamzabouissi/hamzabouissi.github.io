@@ -2,22 +2,43 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>//localhost:1313/</loc>
-    <lastmod>2023-05-19T16:14:49+01:00</lastmod>
+    <loc>//localhost:1313/tags/bind9/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/2023-04-10-hide-your-secrets/</loc>
-    <lastmod>2023-05-19T16:14:49+01:00</lastmod>
+    <loc>//localhost:1313/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/deploy-gitea-k8s/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/dns/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/giea/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/helm/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/kubernetes/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/posts/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/proxmox/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/</loc>
+    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/hide-your-secrets/</loc>
     <lastmod>2023-05-19T16:14:49+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/aws-copilot/</loc>
     <lastmod>2023-04-25T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/2023-04-10-confession/</loc>
-    <lastmod>2023-04-25T16:12:38+01:00</lastmod>
-  </url><url>
-    <loc>//localhost:1313/tags/</loc>
+    <loc>//localhost:1313/posts/confession/</loc>
     <lastmod>2023-04-25T16:12:38+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/dynamodb/</loc>
@@ -26,7 +47,7 @@
     <loc>//localhost:1313/tags/ecs/</loc>
     <lastmod>2023-04-20T15:36:32+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/2023-04-10-stress-swallows-you/</loc>
+    <loc>//localhost:1313/posts/stress-swallows-you/</loc>
     <lastmod>2023-04-20T15:36:32+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/lambda/</loc>
@@ -38,13 +59,13 @@
     <loc>//localhost:1313/tags/cloudformation/</loc>
     <lastmod>2023-04-16T16:05:46+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/2023-04-10-determination/</loc>
+    <loc>//localhost:1313/posts/determination/</loc>
     <lastmod>2023-04-16T16:05:46+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/2023-04-10-the-search/</loc>
+    <loc>//localhost:1313/posts/the-search/</loc>
     <lastmod>2023-04-12T15:28:36+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/2023-04-10-the-beginning/</loc>
+    <loc>//localhost:1313/posts/the-beginning/</loc>
     <lastmod>2023-04-10T15:25:26+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/aws/</loc>
@@ -56,7 +77,7 @@
     <loc>//localhost:1313/tags/cloudfront/</loc>
     <lastmod>2023-01-10T11:39:04+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/2023-02-10-deployment-preview-with-aws-cloudfront/</loc>
+    <loc>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</loc>
     <lastmod>2023-01-10T11:39:04+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/frontend/</loc>

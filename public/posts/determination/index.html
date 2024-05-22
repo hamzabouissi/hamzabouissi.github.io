@@ -1,0 +1,217 @@
+<!doctype html><html lang=en dir=auto><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name=robots content="index, follow"><title>GCP -> AWS Migration: Determination | chown u+r mind</title>
+<meta name=keywords content="AWS copilot,Cloudformation,RDS"><meta name=description content="You know that feeling ?, when you&rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&rsquo;t work then your mind tells you &ldquo;you need to change it a little bit&rdquo;.
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused."><meta name=author content="Me"><link rel=canonical href=//localhost:1313/posts/determination/><link crossorigin=anonymous href=/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z+V9+cO1A=" rel="preload stylesheet" as=style><link rel=icon href=//localhost:1313/%3Clink%20/%20abs%20url%3E><link rel=icon type=image/png sizes=16x16 href=//localhost:1313/%3Clink%20/%20abs%20url%3E><link rel=icon type=image/png sizes=32x32 href=//localhost:1313/%3Clink%20/%20abs%20url%3E><link rel=apple-touch-icon href=//localhost:1313/%3Clink%20/%20abs%20url%3E><link rel=mask-icon href=//localhost:1313/%3Clink%20/%20abs%20url%3E><meta name=theme-color content="#2e2e33"><meta name=msapplication-TileColor content="#2e2e33"><link rel=alternate hreflang=en href=//localhost:1313/posts/determination/><noscript><style>#theme-toggle,.top-link{display:none}</style><style>@media(prefers-color-scheme:dark){:root{--theme:rgb(29, 30, 32);--entry:rgb(46, 46, 51);--primary:rgb(218, 218, 219);--secondary:rgb(155, 156, 157);--tertiary:rgb(65, 66, 68);--content:rgb(196, 196, 197);--code-block-bg:rgb(46, 46, 51);--code-bg:rgb(55, 56, 62);--border:rgb(51, 51, 51)}.list{background:var(--theme)}.list:not(.dark)::-webkit-scrollbar-track{background:0 0}.list:not(.dark)::-webkit-scrollbar-thumb{border-color:var(--theme)}}</style></noscript><meta property="og:title" content="GCP -> AWS Migration: Determination"><meta property="og:description" content="You know that feeling ?, when you&rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&rsquo;t work then your mind tells you &ldquo;you need to change it a little bit&rdquo;.
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused."><meta property="og:type" content="article"><meta property="og:url" content="//localhost:1313/posts/determination/"><meta property="og:image" content="//localhost:1313/img/determination.jpg"><meta property="article:section" content="posts"><meta property="article:published_time" content="2023-04-16T16:05:46+01:00"><meta property="article:modified_time" content="2023-04-16T16:05:46+01:00"><meta property="og:site_name" content="ExampleSite"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content="//localhost:1313/img/determination.jpg"><meta name=twitter:title content="GCP -> AWS Migration: Determination"><meta name=twitter:description content="You know that feeling ?, when you&rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&rsquo;t work then your mind tells you &ldquo;you need to change it a little bit&rdquo;.
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused."><script type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Posts","item":"//localhost:1313/posts/"},{"@type":"ListItem","position":2,"name":"GCP -\u003e AWS Migration: Determination","item":"//localhost:1313/posts/determination/"}]}</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","headline":"GCP -\u003e AWS Migration: Determination","name":"GCP -\u003e AWS Migration: Determination","description":"You know that feeling ?, when you\u0026rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn\u0026rsquo;t work then your mind tells you \u0026ldquo;you need to change it a little bit\u0026rdquo;.\nSo you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused.","keywords":["AWS copilot","Cloudformation","RDS"],"articleBody":" You know that feeling ?, when you’re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn’t work then your mind tells you “you need to change it a little bit”.\nSo you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.\nThe last time I was left in “Deploying RDS with copilot using CloudFormation”, Yeah my approach to solving the problem is the same as before, typing a bunch of keywords and questions into Google, clicking on the first few links, if Stack Overflow then I detect responses with green mark and copy code, if it’s an article, I find snippets and copy the ones that have RDS or DB on them\nI took the time to understand CloudFormation file structure and a few resource types\nAt first, I found this snippet\n# Set AWS template version AWSTemplateFormatVersion: \"2010-09-09\" # Set Parameters Parameters: EngineVersion: Description: PostgreSQL version. Type: String Default: \"14.1\" SubnetIds: Description: Subnets Type: \"List\" VpcId: Description: Insert your existing VPC id here Type: String Resources: DBSubnetGroup: Type: \"AWS::RDS::DBSubnetGroup\" Properties: DBSubnetGroupDescription: !Ref \"AWS::StackName\" SubnetIds: !Ref SubnetIds DatabaseSecurityGroup: Type: \"AWS::EC2::SecurityGroup\" Properties: GroupDescription: The Security Group for the database instance. VpcId: !Ref VpcId SecurityGroupIngress: - IpProtocol: tcp FromPort: 5432 ToPort: 5432 DBInstance: Type: \"AWS::RDS::DBInstance\" Properties: AllocatedStorage: \"30\" DBInstanceClass: db.t4g.medium DBName: \"postgres\" DBSubnetGroupName: !Ref DBSubnetGroup Engine: postgres EngineVersion: !Ref EngineVersion MasterUsername: username MasterUserPassword: password StorageType: gp2 MonitoringInterval: 0 VPCSecurityGroups: - !Ref DatabaseSecurityGroup The following code will create 3 resources: DbInstance , DatabaseSecurityGroup , DBSubnetGroup , From my understanding the connection between those resources is a Database need to be created on private Subnets(DBSubnetGroup) on the other side for the database to accept connection it needs a security group( DatabaseSecurityGroup ) which should be on the same VPC as the Subnets\nNow before I paste this code into environment/addons/rds.yml, I’m going to remove the parameters as we have an alternate method of passing the SubnetIds and VpcId.\nCloudFormation gives the ability to import resources from previously created stacks with Fn::ImportValue function. In this case, after I run copilot env deploy --name test . Copilot create 2 CloudFormation stacks\nThe first stack is the interesting one, after we open on mycompany-app-test stack, we click on the Outputs panel, and it should show us the created resources with export names that can be imported on our RDS stack.\nThe two interesting export names are mycompany-app-test-PrivateSubnets , mycompany-app-test-VpcId , let’s refactor our rds.yml file and add them\n# Set AWS template version AWSTemplateFormatVersion: \"2010-09-09\" # Set Parameters Parameters: App: Type: String Description: Your application's name. Env: Type: String Description: The environment name your service, job, or workflow is being deployed Name: Type: String Description: The name of the service, job, or workflow being deployed. Resources: DBSubnetGroup: Type: \"AWS::RDS::DBSubnetGroup\" Properties: DBSubnetGroupDescription: !Ref \"AWS::StackName\" SubnetIds: !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets'}] DatabaseSecurityGroup: Type: \"AWS::EC2::SecurityGroup\" Properties: GroupDescription: The Security Group for the database instance. VpcId: Fn::ImportValue: !Sub '${App}-${Env}-VpcId' SecurityGroupIngress: - IpProtocol: tcp FromPort: 5432 ToPort: 5432 CidrIp: 0.0.0.0/0 DBInstance: Type: \"AWS::RDS::DBInstance\" Properties: AllocatedStorage: \"30\" DBInstanceClass: db.t4g.medium DBName: \"postgres\" DBSubnetGroupName: !Ref DBSubnetGroup Engine: postgres EngineVersion: \"14.1\" MasterUsername: username MasterUserPassword: password StorageType: gp2 MonitoringInterval: 0 VPCSecurityGroups: - !Ref DatabaseSecurityGroup As you see, I removed the previous parameters and replace them with a few parameters App , Env , Name which is copilot required add-ons parameters. Also for SubnetIds I import PrivateSubnets and split it because it must be passed as separate values\nAfter I run copilot env deploy --name test a nested stack will get created\nBut how I’m going to test if the database is working or accepting connection while it’s not reachable on the public internet, well it seems I can create an ec2 instance on the public subnet and allow connection with the security group.\nHere is the refactored code\n# Set AWS template version AWSTemplateFormatVersion: \"2010-09-09\" # Set Parameters Parameters: App: Type: String Description: Your application's name. Env: Type: String Description: The environment name your service, job, or workflow is being deployed to. Resources: DBSubnetGroup: Type: \"AWS::RDS::DBSubnetGroup\" Properties: DBSubnetGroupDescription: !Ref \"AWS::StackName\" SubnetIds: !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets' }] DatabaseSecurityGroup: Type: \"AWS::EC2::SecurityGroup\" Properties: GroupDescription: The Security Group for the database instance. VpcId: Fn::ImportValue: !Sub '${App}-${Env}-VpcId' SecurityGroupIngress: - IpProtocol: tcp FromPort: 5432 ToPort: 5432 CidrIp: 0.0.0.0/0 DBInstance: Type: \"AWS::RDS::DBInstance\" Properties: AllocatedStorage: \"30\" DBInstanceClass: db.t4g.medium DBName: \"postgres\" DBSubnetGroupName: !Ref DBSubnetGroup Engine: postgres EngineVersion: \"14.1\" MasterUsername: username MasterUserPassword: password StorageType: gp2 MonitoringInterval: 0 VPCSecurityGroups: - !Ref DatabaseSecurityGroup Tags: - Key: Name Value: !Sub 'copilot-${App}-${Env}' NewKeyPair: Type: 'AWS::EC2::KeyPair' Properties: KeyName: !Sub ${App}-${Env}-EC2-RDS-KEYPAIR Tags: - Key: Name Value: !Sub 'copilot-${App}-${Env}' EC2SecuityGroup: Type: \"AWS::EC2::SecurityGroup\" Properties: GroupDescription: The Security Group for the ec2 instance. VpcId: Fn::ImportValue: !Sub '${App}-${Env}-VpcId' SecurityGroupIngress: - IpProtocol: tcp FromPort: 22 ToPort: 22 CidrIp: 0.0.0.0/0 Tags: - Key: Name Value: !Sub 'copilot-${App}-${Env}' Ec2Instance: Type: 'AWS::EC2::Instance' Properties: ImageId: ami-05e8e219ac7e82eba InstanceType: t2.micro KeyName: !Ref NewKeyPair SubnetId: !Select [\"0\",!Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PublicSubnets' }]] SecurityGroupIds: - !Ref EC2SecuityGroup UserData: | #!/bin/bash sudo apt update sudo apt upgrade sudo apt install postgresql postgresql-contrib Tags: - Key: Name Value: !Sub 'copilot-${App}-${Env}' Outputs: ServerPublicDNS: Description: \"Public DNS of EC2 instance\" Value: !GetAtt Ec2Instance.PublicDnsName DatabaseEndpoint: Description: \"Connection endpoint for the database\" Value: !GetAtt DBInstance.Endpoint.Address A few things to notice, I added an Ec2Instance on a public subnet, a security group that allows only ssh port (22), meanwhile, the ImageId, InstanceType property are more tied to the region you’re deploying to, I am using eu-west-3(I’m not a French guy -_-). NewKeyPair is the ssh key to log into EC2, and finally the Outputs section for getting the EC2 instance and Database connection URL\nI rerun copilot env deploy --name test , wait for the stack to update, before connecting to ec2 an ssh file must be downloaded, the ssh key pair will be saved on AWS Parameter Store, here are the following steps to download it\naws ec2 describe-key-pairs --filters Name=key-name,Values=mycompany-app-test-E The above command output.\nkey-05abb699beEXAMPLE and to save the ssh key value\naws ssm get-parameter --name /ec2/keypair/key-05abb699beEXAMPLE --with-decrypt Now, After I get the ssh file, try to connect to the server\nssh -i new-key-pair.pem ubuntu@ec2-host I try to connect to RDS\npsql -U username -d postgres -h database_host ","wordCount":"1065","inLanguage":"en","image":"//localhost:1313/img/determination.jpg","datePublished":"2023-04-16T16:05:46+01:00","dateModified":"2023-04-16T16:05:46+01:00","author":{"@type":"Person","name":"Me"},"mainEntityOfPage":{"@type":"WebPage","@id":"//localhost:1313/posts/determination/"},"publisher":{"@type":"Organization","name":"chown u+r mind","logo":{"@type":"ImageObject","url":"//localhost:1313/%3Clink%20/%20abs%20url%3E"}}}</script></head><body id=top><script>localStorage.getItem("pref-theme")==="dark"?document.body.classList.add("dark"):localStorage.getItem("pref-theme")==="light"?document.body.classList.remove("dark"):window.matchMedia("(prefers-color-scheme: dark)").matches&&document.body.classList.add("dark")</script><header class=header><nav class=nav><div class=logo><a href=//localhost:1313/ accesskey=h title="chown u+r mind (Alt + H)"><img src=//localhost:1313/apple-touch-icon.png alt aria-label=logo height=35>chown u+r mind</a><div class=logo-switches><button id=theme-toggle accesskey=t title="(Alt + T)"><svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg><svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button></div></div><ul id=menu><li><a href=//localhost:1313/tags/ title=tags><span>tags</span></a></li><li><a href=//localhost:1313/search/ title="search (Alt + /)" accesskey=/><span>search</span></a></li></ul></nav></header><main class=main><article class=post-single><header class=post-header><div class=breadcrumbs><a href=//localhost:1313/>Home</a>&nbsp;»&nbsp;<a href=//localhost:1313/posts/>Posts</a></div><h1 class="post-title entry-hint-parent">GCP -> AWS Migration: Determination</h1><div class=post-meta><span title='2023-04-16 16:05:46 +0100 CET'>April 16, 2023</span>&nbsp;·&nbsp;5 min&nbsp;·&nbsp;1065 words&nbsp;·&nbsp;Me</div></header><figure class=entry-cover><img loading=eager src=//localhost:1313/img/determination.jpg alt></figure><div class=post-content><blockquote><p>You know that feeling ?, when you&rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&rsquo;t work then your mind tells you &ldquo;you need to change it a little bit&rdquo;.<br>So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.</p></blockquote><p>The last time I was left in &ldquo;Deploying RDS with copilot using CloudFormation&rdquo;, Yeah my approach to solving the problem is the same as before, typing a bunch of keywords and questions into Google, clicking on the first few links, if Stack Overflow then I detect responses with green mark and copy code, if it&rsquo;s an article, I find snippets and copy the ones that have RDS or DB on them</p><p>I took the time to understand CloudFormation file structure and a few resource types</p><p>At first, I found this snippet</p><pre><code># Set AWS template version
+AWSTemplateFormatVersion: &quot;2010-09-09&quot;
+# Set Parameters
+Parameters:
+  EngineVersion:
+    Description: PostgreSQL version.
+    Type: String
+    Default: &quot;14.1&quot;
+  SubnetIds:
+    Description: Subnets
+    Type: &quot;List&lt;AWS::EC2::Subnet::Id&gt;&quot;
+  VpcId:
+    Description: Insert your existing VPC id here
+    Type: String
+
+Resources:
+  DBSubnetGroup:
+    Type: &quot;AWS::RDS::DBSubnetGroup&quot;
+    Properties:
+      DBSubnetGroupDescription: !Ref &quot;AWS::StackName&quot;
+      SubnetIds: !Ref SubnetIds
+
+  DatabaseSecurityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the database instance.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+
+  DBInstance:
+    Type: &quot;AWS::RDS::DBInstance&quot;
+    Properties:
+      AllocatedStorage: &quot;30&quot;
+      DBInstanceClass: db.t4g.medium
+      DBName: &quot;postgres&quot;
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: !Ref EngineVersion
+      MasterUsername: username
+      MasterUserPassword: password
+      StorageType: gp2
+      MonitoringInterval: 0
+      VPCSecurityGroups:
+      - !Ref DatabaseSecurityGroup
+</code></pre><p>The following code will create 3 resources: <strong>DbInstance</strong> , <strong>DatabaseSecurityGroup</strong> , <strong>DBSubnetGroup</strong> , From my understanding the connection between those resources is a Database need to be created on private <strong>Subnets(DBSubnetGroup)</strong> on the other side for the database to accept connection it needs a security group( <strong>DatabaseSecurityGroup</strong> ) which should be on the same <strong>VPC</strong> as the <strong>Subnets</strong></p><p>Now before I paste this code into environment/addons/rds.yml, I&rsquo;m going to remove the parameters as we have an alternate method of passing the <strong>SubnetIds</strong> and <strong>VpcId</strong>.</p><p>CloudFormation gives the ability to import resources from previously created stacks with <code>Fn::ImportValue</code> function. In this case, after I run <code>copilot env deploy --name test</code> . Copilot create 2 CloudFormation stacks</p><p>The first stack is the interesting one, after we open on <strong>mycompany-app-test</strong> stack, we click on the Outputs panel, and it should show us the created resources with export names that can be imported on our RDS stack.</p><p>The two interesting export names are <strong>mycompany-app-test-PrivateSubnets</strong> , <strong>mycompany-app-test-VpcId</strong> , let&rsquo;s refactor our rds.yml file and add them</p><pre><code># Set AWS template version
+AWSTemplateFormatVersion: &quot;2010-09-09&quot;
+# Set Parameters
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, job, or workflow is being deployed
+  Name:
+    Type: String
+    Description: The name of the service, job, or workflow being deployed.
+
+Resources:
+  DBSubnetGroup:
+    Type: &quot;AWS::RDS::DBSubnetGroup&quot;
+    Properties:
+      DBSubnetGroupDescription: !Ref &quot;AWS::StackName&quot;
+      SubnetIds:
+        !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets'}]
+  DatabaseSecurityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the database instance.
+      VpcId:
+        Fn::ImportValue: !Sub '${App}-${Env}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+
+  DBInstance:
+    Type: &quot;AWS::RDS::DBInstance&quot;
+    Properties:
+      AllocatedStorage: &quot;30&quot;
+      DBInstanceClass: db.t4g.medium
+      DBName: &quot;postgres&quot;
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: &quot;14.1&quot;
+      MasterUsername: username
+      MasterUserPassword: password
+      StorageType: gp2
+      MonitoringInterval: 0
+      VPCSecurityGroups:
+      - !Ref DatabaseSecurityGroup
+</code></pre><p>As you see, I removed the previous parameters and replace them with a few parameters <strong>App</strong> , <strong>Env</strong> , <strong>Name</strong> which is copilot required add-ons parameters. Also for SubnetIds I import PrivateSubnets and split it because it must be passed as separate values</p><p>After I run <code>copilot env deploy --name test</code> a nested stack will get created</p><p>But how I&rsquo;m going to test if the database is working or accepting connection while it&rsquo;s not reachable on the public internet, well it seems I can create an ec2 instance on the public subnet and allow connection with the security group.</p><p>Here is the refactored code</p><pre><code># Set AWS template version
+AWSTemplateFormatVersion: &quot;2010-09-09&quot;
+# Set Parameters
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, job, or workflow is being deployed to.
+
+ 
+Resources:
+  DBSubnetGroup:
+    Type: &quot;AWS::RDS::DBSubnetGroup&quot;
+    Properties:
+      DBSubnetGroupDescription: !Ref &quot;AWS::StackName&quot;
+      SubnetIds:
+        !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets' }]
+  
+  DatabaseSecurityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the database instance.
+      VpcId: 
+        Fn::ImportValue:
+          !Sub '${App}-${Env}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+  
+  DBInstance:
+    Type: &quot;AWS::RDS::DBInstance&quot;
+    Properties:
+      AllocatedStorage: &quot;30&quot;
+      DBInstanceClass: db.t4g.medium
+      DBName: &quot;postgres&quot;
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: &quot;14.1&quot;
+      MasterUsername: username
+      MasterUserPassword: password
+      StorageType: gp2
+      MonitoringInterval: 0
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+
+  NewKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: !Sub ${App}-${Env}-EC2-RDS-KEYPAIR
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+  
+  EC2SecuityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the ec2 instance.
+      VpcId: 
+        Fn::ImportValue:
+          !Sub '${App}-${Env}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+        
+  Ec2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: ami-05e8e219ac7e82eba
+      InstanceType: t2.micro
+      KeyName: !Ref NewKeyPair
+      SubnetId: !Select [&quot;0&quot;,!Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PublicSubnets' }]]
+      SecurityGroupIds:
+        - !Ref EC2SecuityGroup
+      
+      UserData: |
+        #!/bin/bash
+        sudo apt update
+        sudo apt upgrade
+        sudo apt install postgresql postgresql-contrib
+
+
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+      
+
+
+Outputs:
+  ServerPublicDNS:
+    Description: &quot;Public DNS of EC2 instance&quot;
+    Value: !GetAtt Ec2Instance.PublicDnsName
+
+  DatabaseEndpoint:
+    Description: &quot;Connection endpoint for the database&quot;
+    Value: !GetAtt DBInstance.Endpoint.Address
+</code></pre><p>A few things to notice, I added an Ec2Instance on a public subnet, a security group that allows only ssh port (22), meanwhile, the ImageId, InstanceType property are more tied to the region you&rsquo;re deploying to, I am using eu-west-3(I&rsquo;m not a French guy -_-). NewKeyPair is the ssh key to log into EC2, and finally the Outputs section for getting the EC2 instance and Database connection URL</p><p>I rerun <code>copilot env deploy --name test</code> , wait for the stack to update, before connecting to ec2 an ssh file must be downloaded, the ssh key pair will be saved on AWS Parameter Store, here are the following steps to download it</p><pre><code>aws ec2 describe-key-pairs --filters Name=key-name,Values=mycompany-app-test-E
+</code></pre><p>The above command output.</p><pre><code>key-05abb699beEXAMPLE
+</code></pre><p>and to save the ssh key value</p><pre><code>aws ssm get-parameter --name /ec2/keypair/key-05abb699beEXAMPLE --with-decrypt
+</code></pre><p>Now, After I get the ssh file, try to connect to the server</p><pre><code>ssh -i new-key-pair.pem ubuntu@ec2-host
+</code></pre><p>I try to connect to RDS</p><pre><code>psql -U username -d postgres -h database_host
+</code></pre></div><footer class=post-footer><ul class=post-tags><li><a href=//localhost:1313/tags/aws-copilot/>AWS Copilot</a></li><li><a href=//localhost:1313/tags/cloudformation/>Cloudformation</a></li><li><a href=//localhost:1313/tags/rds/>RDS</a></li></ul><nav class=paginav><a class=prev href=//localhost:1313/posts/stress-swallows-you/><span class=title>« Prev</span><br><span>GCP -> AWS Migration: Stress Swallows You</span>
+</a><a class=next href=//localhost:1313/posts/the-search/><span class=title>Next »</span><br><span>GCP -> AWS Migration: The Search</span></a></nav><ul class=share-buttons><li><a target=_blank rel="noopener noreferrer" aria-label="share GCP -> AWS Migration: Determination on x" href="https://x.com/intent/tweet/?text=GCP%20-%3e%20AWS%20Migration%3a%20Determination&amp;url=%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f&amp;hashtags=AWScopilot%2cCloudformation%2cRDS"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentcolor"><path d="M512 62.554V449.446C512 483.97 483.97 512 449.446 512H62.554C28.03 512 0 483.97.0 449.446V62.554C0 28.03 28.029.0 62.554.0H449.446C483.971.0 512 28.03 512 62.554zM269.951 190.75 182.567 75.216H56L207.216 272.95 63.9 436.783h61.366L235.9 310.383l96.667 126.4H456L298.367 228.367l134-153.151H371.033zM127.633 110h36.468l219.38 290.065H349.5z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share GCP -> AWS Migration: Determination on linkedin" href="https://www.linkedin.com/shareArticle?mini=true&amp;url=%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f&amp;title=GCP%20-%3e%20AWS%20Migration%3a%20Determination&amp;summary=GCP%20-%3e%20AWS%20Migration%3a%20Determination&amp;source=%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentcolor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zM160.461 423.278V197.561h-75.04v225.717h75.04zm270.539.0V293.839c0-69.333-37.018-101.586-86.381-101.586-39.804.0-57.634 21.891-67.617 37.266v-31.958h-75.021c.995 21.181.0 225.717.0 225.717h75.02V297.222c0-6.748.486-13.492 2.474-18.315 5.414-13.475 17.767-27.434 38.494-27.434 27.135.0 38.007 20.707 38.007 51.037v120.768H431zM123.448 88.722C97.774 88.722 81 105.601 81 127.724c0 21.658 16.264 39.002 41.455 39.002h.484c26.165.0 42.452-17.344 42.452-39.002-.485-22.092-16.241-38.954-41.943-39.002z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share GCP -> AWS Migration: Determination on reddit" href="https://reddit.com/submit?url=%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f&title=GCP%20-%3e%20AWS%20Migration%3a%20Determination"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentcolor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zM446 265.638c0-22.964-18.616-41.58-41.58-41.58-11.211.0-21.361 4.457-28.841 11.666-28.424-20.508-67.586-33.757-111.204-35.278l18.941-89.121 61.884 13.157c.756 15.734 13.642 28.29 29.56 28.29 16.407.0 29.706-13.299 29.706-29.701.0-16.403-13.299-29.702-29.706-29.702-11.666.0-21.657 6.792-26.515 16.578l-69.105-14.69c-1.922-.418-3.939-.042-5.585 1.036-1.658 1.073-2.811 2.761-3.224 4.686l-21.152 99.438c-44.258 1.228-84.046 14.494-112.837 35.232-7.468-7.164-17.589-11.591-28.757-11.591-22.965.0-41.585 18.616-41.585 41.58.0 16.896 10.095 31.41 24.568 37.918-.639 4.135-.99 8.328-.99 12.576.0 63.977 74.469 115.836 166.33 115.836s166.334-51.859 166.334-115.836c0-4.218-.347-8.387-.977-12.493 14.564-6.47 24.735-21.034 24.735-38.001zM326.526 373.831c-20.27 20.241-59.115 21.816-70.534 21.816-11.428.0-50.277-1.575-70.522-21.82-3.007-3.008-3.007-7.882.0-10.889 3.003-2.999 7.882-3.003 10.885.0 12.777 12.781 40.11 17.317 59.637 17.317 19.522.0 46.86-4.536 59.657-17.321 3.016-2.999 7.886-2.995 10.885.008 3.008 3.011 3.003 7.882-.008 10.889zm-5.23-48.781c-16.373.0-29.701-13.324-29.701-29.698.0-16.381 13.328-29.714 29.701-29.714 16.378.0 29.706 13.333 29.706 29.714.0 16.374-13.328 29.698-29.706 29.698zM160.91 295.348c0-16.381 13.328-29.71 29.714-29.71 16.369.0 29.689 13.329 29.689 29.71.0 16.373-13.32 29.693-29.689 29.693-16.386.0-29.714-13.32-29.714-29.693z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share GCP -> AWS Migration: Determination on facebook" href="https://facebook.com/sharer/sharer.php?u=%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentcolor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H342.978V319.085h66.6l12.672-82.621h-79.272v-53.617c0-22.603 11.073-44.636 46.58-44.636H425.6v-70.34s-32.71-5.582-63.982-5.582c-65.288.0-107.96 39.569-107.96 111.204v62.971h-72.573v82.621h72.573V512h-191.104c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share GCP -> AWS Migration: Determination on whatsapp" href="https://api.whatsapp.com/send?text=GCP%20-%3e%20AWS%20Migration%3a%20Determination%20-%20%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentcolor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zm-58.673 127.703c-33.842-33.881-78.847-52.548-126.798-52.568-98.799.0-179.21 80.405-179.249 179.234-.013 31.593 8.241 62.428 23.927 89.612l-25.429 92.884 95.021-24.925c26.181 14.28 55.659 21.807 85.658 21.816h.074c98.789.0 179.206-80.413 179.247-179.243.018-47.895-18.61-92.93-52.451-126.81zM263.976 403.485h-.06c-26.734-.01-52.954-7.193-75.828-20.767l-5.441-3.229-56.386 14.792 15.05-54.977-3.542-5.637c-14.913-23.72-22.791-51.136-22.779-79.287.033-82.142 66.867-148.971 149.046-148.971 39.793.014 77.199 15.531 105.329 43.692 28.128 28.16 43.609 65.592 43.594 105.4-.034 82.149-66.866 148.983-148.983 148.984zm81.721-111.581c-4.479-2.242-26.499-13.075-30.604-14.571-4.105-1.495-7.091-2.241-10.077 2.241-2.986 4.483-11.569 14.572-14.182 17.562-2.612 2.988-5.225 3.364-9.703 1.12-4.479-2.241-18.91-6.97-36.017-22.23C231.8 264.15 222.81 249.484 220.198 245s-.279-6.908 1.963-9.14c2.016-2.007 4.48-5.232 6.719-7.847 2.24-2.615 2.986-4.484 4.479-7.472 1.493-2.99.747-5.604-.374-7.846-1.119-2.241-10.077-24.288-13.809-33.256-3.635-8.733-7.327-7.55-10.077-7.688-2.609-.13-5.598-.158-8.583-.158-2.986.0-7.839 1.121-11.944 5.604-4.105 4.484-15.675 15.32-15.675 37.364.0 22.046 16.048 43.342 18.287 46.332 2.24 2.99 31.582 48.227 76.511 67.627 10.685 4.615 19.028 7.371 25.533 9.434 10.728 3.41 20.492 2.929 28.209 1.775 8.605-1.285 26.499-10.833 30.231-21.295 3.732-10.464 3.732-19.431 2.612-21.298-1.119-1.869-4.105-2.99-8.583-5.232z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share GCP -> AWS Migration: Determination on telegram" href="https://telegram.me/share/url?text=GCP%20-%3e%20AWS%20Migration%3a%20Determination&amp;url=%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f"><svg viewBox="2 2 28 28" height="30" width="30" fill="currentcolor"><path d="M26.49 29.86H5.5a3.37 3.37.0 01-2.47-1 3.35 3.35.0 01-1-2.47V5.48A3.36 3.36.0 013 3 3.37 3.37.0 015.5 2h21A3.38 3.38.0 0129 3a3.36 3.36.0 011 2.46V26.37a3.35 3.35.0 01-1 2.47 3.38 3.38.0 01-2.51 1.02zm-5.38-6.71a.79.79.0 00.85-.66L24.73 9.24a.55.55.0 00-.18-.46.62.62.0 00-.41-.17q-.08.0-16.53 6.11a.59.59.0 00-.41.59.57.57.0 00.43.52l4 1.24 1.61 4.83a.62.62.0 00.63.43.56.56.0 00.4-.17L16.54 20l4.09 3A.9.9.0 0021.11 23.15zM13.8 20.71l-1.21-4q8.72-5.55 8.78-5.55c.15.0.23.0.23.16a.18.18.0 010 .06s-2.51 2.3-7.52 6.8z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share GCP -> AWS Migration: Determination on ycombinator" href="https://news.ycombinator.com/submitlink?t=GCP%20-%3e%20AWS%20Migration%3a%20Determination&u=%2f%2flocalhost%3a1313%2fposts%2fdetermination%2f"><svg width="30" height="30" viewBox="0 0 512 512" fill="currentcolor" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"><path d="M449.446.0C483.971.0 512 28.03 512 62.554V449.446C512 483.97 483.97 512 449.446 512H62.554C28.03 512 0 483.97.0 449.446V62.554C0 28.03 28.029.0 62.554.0H449.446zM183.8767 87.9921h-62.034L230.6673 292.4508V424.0079h50.6655V292.4508L390.1575 87.9921H328.1233L256 238.2489z"/></svg></a></li></ul></footer></article></main><footer class=footer><span>&copy; 2024 <a href=//localhost:1313/>chown u+r mind</a></span> ·
+<span>Powered by
+<a href=https://gohugo.io/ rel="noopener noreferrer" target=_blank>Hugo</a> &
+        <a href=https://github.com/adityatelange/hugo-PaperMod/ rel=noopener target=_blank>PaperMod</a></span></footer><a href=#top aria-label="go to top" title="Go to Top (Alt + G)" class=top-link id=top-link accesskey=g><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentcolor"><path d="M12 6H0l6-6z"/></svg>
+</a><script>let menu=document.getElementById("menu");menu&&(menu.scrollLeft=localStorage.getItem("menu-scroll-position"),menu.onscroll=function(){localStorage.setItem("menu-scroll-position",menu.scrollLeft)}),document.querySelectorAll('a[href^="#"]').forEach(e=>{e.addEventListener("click",function(e){e.preventDefault();var t=this.getAttribute("href").substr(1);window.matchMedia("(prefers-reduced-motion: reduce)").matches?document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView():document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView({behavior:"smooth"}),t==="top"?history.replaceState(null,null," "):history.pushState(null,null,`#${t}`)})})</script><script>var mybutton=document.getElementById("top-link");window.onscroll=function(){document.body.scrollTop>800||document.documentElement.scrollTop>800?(mybutton.style.visibility="visible",mybutton.style.opacity="1"):(mybutton.style.visibility="hidden",mybutton.style.opacity="0")}</script><script>document.getElementById("theme-toggle").addEventListener("click",()=>{document.body.className.includes("dark")?(document.body.classList.remove("dark"),localStorage.setItem("pref-theme","light")):(document.body.classList.add("dark"),localStorage.setItem("pref-theme","dark"))})</script><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script></body></html>

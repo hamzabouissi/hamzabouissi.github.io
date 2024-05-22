@@ -15,9 +15,9 @@
     <atom:link href="//localhost:1313/tags/ecs/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>GCP -&gt; AWS Migration: Stress Swallows You</title>
-      <link>//localhost:1313/posts/2023-04-10-stress-swallows-you/</link>
+      <link>//localhost:1313/posts/stress-swallows-you/</link>
       <pubDate>Thu, 20 Apr 2023 15:36:32 +0100</pubDate>
-      <guid>//localhost:1313/posts/2023-04-10-stress-swallows-you/</guid>
+      <guid>//localhost:1313/posts/stress-swallows-you/</guid>
       <description>3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.
 So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database .</description>
     </item>
