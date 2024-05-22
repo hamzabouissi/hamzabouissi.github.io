@@ -3,7 +3,8 @@ title = 'Deploying gitea into kubernetes with custom domain'
 date = 2023-05-20T16:12:38+01:00
 tags = ['Kubernetes','giea','dns','helm','proxmox','bind9']
 draft = false
-
+[cover]
+    image = 'img/deploy_gitea.jpg'
 +++
 
 ## Introudction
