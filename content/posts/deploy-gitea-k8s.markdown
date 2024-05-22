@@ -332,6 +332,8 @@ helm upgrade gitea gitea-charts/gitea --values values-gitea.yaml
 
 Now, we can push the image: gitlab.homelab.local/gitea_admin/app:latest
 
+![pushed_image](/img/pushed_image.png)
+
 if you have created another user instead of gitea_admin, you can replace it in the above command.
 
 ## Add Bind9 Server in CoreDNS
