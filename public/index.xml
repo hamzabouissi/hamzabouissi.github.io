@@ -11,8 +11,15 @@
     </image>
     <generator>Hugo -- 0.126.1</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 20 May 2023 16:12:38 +0100</lastBuildDate>
+    <lastBuildDate>Thu, 30 May 2024 11:12:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Oops...Etcd went down</title>
+      <link>//localhost:1313/posts/etcd_went_down/</link>
+      <pubDate>Thu, 30 May 2024 11:12:57 +0100</pubDate>
+      <guid>//localhost:1313/posts/etcd_went_down/</guid>
+      <description>Introduction So that shiny day I got a project to do, and it required deploying a mongodb cluster. few searches and I found percona operator, moved into installation section and copied the helm install command.</description>
+    </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
       <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
