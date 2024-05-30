@@ -14,10 +14,24 @@
     <lastBuildDate>Thu, 30 May 2024 11:12:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/index.xml" rel="self" type="application/rss+xml" />
     <item>
+      <title>Boltdb</title>
+      <link>//localhost:1313/tags/boltdb/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>//localhost:1313/tags/boltdb/</guid>
+      <description></description>
+    </item>
+    <item>
       <title>Etcd</title>
       <link>//localhost:1313/tags/etcd/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>//localhost:1313/tags/etcd/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Go</title>
+      <link>//localhost:1313/tags/go/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>//localhost:1313/tags/go/</guid>
       <description></description>
     </item>
     <item>
@@ -28,10 +42,10 @@
       <description></description>
     </item>
     <item>
-      <title>Maintenance</title>
-      <link>//localhost:1313/tags/maintenance/</link>
+      <title>Talos</title>
+      <link>//localhost:1313/tags/talos/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>//localhost:1313/tags/maintenance/</guid>
+      <guid>//localhost:1313/tags/talos/</guid>
       <description></description>
     </item>
     <item>

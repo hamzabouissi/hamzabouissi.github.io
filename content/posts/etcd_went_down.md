@@ -1,7 +1,7 @@
 +++
 title = 'Oops...Etcd went down'
 date = 2024-05-30T11:12:57+01:00
-draft = true
+draft = false
 tags = ['Kubernetes','etcd','talos','go','boltdb']
 [cover]
   image= '/img/sink_boat.jpg'

@@ -18,7 +18,8 @@
       <link>//localhost:1313/posts/etcd_went_down/</link>
       <pubDate>Thu, 30 May 2024 11:12:57 +0100</pubDate>
       <guid>//localhost:1313/posts/etcd_went_down/</guid>
-      <description>Introduction So that shiny day I got a project to do, and it required deploying a mongodb cluster. few searches and I found percona operator, moved into installation section and copied the helm install command.</description>
+      <description>Introduction with 1-Mistake On that shiny day, I got a project that required deploying a mongodb cluster, After a few searches, I found percona Operator, moved into installation section and copied the helm install command.
+After installing the required charts, I noticed that the pods weren&amp;rsquo;t in &amp;ldquo;running&amp;rdquo; state, so as a civilized kubernetes developer I ran &amp;ldquo;kubectl describe pod_name -n namespace&amp;rdquo;, and it turned out the problem was mongodb cluster requires either 3 or 5 nodes</description>
     </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
