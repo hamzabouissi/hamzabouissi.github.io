@@ -98,7 +98,7 @@ import (
 
 func main() {
     // Open the BoltDB database file
-    db, err := bbolt.Open("test.db", 0600, nil)
+    db, err := bbolt.Open("db", 0600, nil)
     if err != nil {
         log.Fatal(err)
     }
