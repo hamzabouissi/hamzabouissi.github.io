@@ -2,6 +2,7 @@
 title = 'Guardians of hell: hydra kratos oathkeeper'
 date = 2024-07-01T11:39:57+01:00
 draft = false
+tags = ['Kubernetes','kratos','talos','oathkeeper','hydra','istio','helm','helmfile','docker']
 [cover]
   image= '/img/guardians.jpg'
 +++
