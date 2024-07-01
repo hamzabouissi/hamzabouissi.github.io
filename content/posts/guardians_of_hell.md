@@ -1,6 +1,6 @@
 +++
 title = 'Guardians of hell: hydra kratos oathkeeper'
-date = 2024-06-20T11:39:57+01:00
+date = 2024-07-01T11:39:57+01:00
 draft = true
 [cover]
   image= '/img/guardians.jpg'
