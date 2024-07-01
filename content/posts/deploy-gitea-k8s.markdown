@@ -7,7 +7,7 @@ draft = false
     image = 'img/deploy_gitea.jpg'
 +++
 
-## Introudction
+## Introduction
 
 Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.
 

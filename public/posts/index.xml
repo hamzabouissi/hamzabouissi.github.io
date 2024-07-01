@@ -9,10 +9,18 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.126.1</generator>
+    <generator>Hugo -- 0.128.0</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 30 May 2024 11:12:57 +0100</lastBuildDate>
+    <lastBuildDate>Thu, 20 Jun 2024 11:39:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Guardians of hell: hydra kratos oathkeeper</title>
+      <link>//localhost:1313/posts/guardians_of_hell/</link>
+      <pubDate>Thu, 20 Jun 2024 11:39:57 +0100</pubDate>
+      <guid>//localhost:1313/posts/guardians_of_hell/</guid>
+      <description>Introduction It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.
+One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</description>
+    </item>
     <item>
       <title>Oops...Etcd went down</title>
       <link>//localhost:1313/posts/etcd_went_down/</link>
@@ -26,7 +34,7 @@ After installing the required charts, I noticed that the pods weren&amp;rsquo;t 
       <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
       <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
-      <description>Introudction Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</description>
+      <description>Introduction Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</description>
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: Hide Your Secrets</title>
