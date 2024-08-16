@@ -9,10 +9,18 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.128.0</generator>
+    <generator>Hugo -- 0.132.2</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 20 May 2023 16:12:38 +0100</lastBuildDate>
+    <lastBuildDate>Mon, 01 Jul 2024 11:39:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/helm/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Guardians of hell: hydra kratos oathkeeper</title>
+      <link>//localhost:1313/posts/guardians_of_hell/</link>
+      <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
+      <guid>//localhost:1313/posts/guardians_of_hell/</guid>
+      <description>Introduction It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.
+One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</description>
+    </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
       <link>//localhost:1313/posts/deploy-gitea-k8s/</link>

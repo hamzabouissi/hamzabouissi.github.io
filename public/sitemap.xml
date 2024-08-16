@@ -3,13 +3,58 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>//localhost:1313/</loc>
-    <lastmod>2024-06-20T11:39:57+01:00</lastmod>
-  </url><url>
-    <loc>//localhost:1313/posts/guardians_of_hell/</loc>
-    <lastmod>2024-06-20T11:39:57+01:00</lastmod>
+    <lastmod>2024-08-12T14:42:01+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/posts/</loc>
-    <lastmod>2024-06-20T11:39:57+01:00</lastmod>
+    <lastmod>2024-08-12T14:42:01+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/transform-aws-5/</loc>
+    <lastmod>2024-08-12T14:42:01+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/transform-aws-4/</loc>
+    <lastmod>2024-08-12T14:40:10+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/transform-aws-3/</loc>
+    <lastmod>2024-08-12T14:40:08+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/transform-aws-2/</loc>
+    <lastmod>2024-08-12T14:40:04+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/transform-aws-1/</loc>
+    <lastmod>2024-08-12T14:32:49+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/docker/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/guardians_of_hell/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/helm/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/helmfile/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/hydra/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/istio/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/kratos/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/kubernetes/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/oathkeeper/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/talos/</loc>
+    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/boltdb/</loc>
     <lastmod>2024-05-30T11:12:57+01:00</lastmod>
@@ -20,16 +65,7 @@
     <loc>//localhost:1313/tags/go/</loc>
     <lastmod>2024-05-30T11:12:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/kubernetes/</loc>
-    <lastmod>2024-05-30T11:12:57+01:00</lastmod>
-  </url><url>
     <loc>//localhost:1313/posts/etcd_went_down/</loc>
-    <lastmod>2024-05-30T11:12:57+01:00</lastmod>
-  </url><url>
-    <loc>//localhost:1313/tags/</loc>
-    <lastmod>2024-05-30T11:12:57+01:00</lastmod>
-  </url><url>
-    <loc>//localhost:1313/tags/talos/</loc>
     <lastmod>2024-05-30T11:12:57+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/bind9/</loc>
@@ -42,9 +78,6 @@
     <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/giea/</loc>
-    <lastmod>2023-05-20T16:12:38+01:00</lastmod>
-  </url><url>
-    <loc>//localhost:1313/tags/helm/</loc>
     <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/proxmox/</loc>

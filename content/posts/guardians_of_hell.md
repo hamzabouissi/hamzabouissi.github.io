@@ -790,3 +790,4 @@ I appreciate your time for reading this.
 ## References
 
 [github_project](https://github.com/hamzabouissi/k8s_authorization_with_ory)
+
