@@ -20,3 +20,7 @@ The solution enables educators to instantly create curriculum-aligned assessment
 We will transform and replace each service varying from Cognito, Lambda, DynamoDb, fargate…etc with its open-source counterpart and host it, where? guessed right, on a Kubernetes cluster.
 
 If you liked the idea, keep it up for next articles.
+
+here is the demo the app
+
+{{< video src="/videos/exam-demo-2.mp4" width="640" height="360" type="video/mp4" >}}
