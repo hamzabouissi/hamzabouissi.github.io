@@ -502,7 +502,6 @@ The latter will be provided to third parties to get authorized for accessing use
 
 Here is a demo of the current setup.
 
-
 ## Oathkeeper
 
 ### Introduction

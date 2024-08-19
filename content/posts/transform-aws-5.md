@@ -1,7 +1,7 @@
 +++
 title = 'Transform AWS Exam Generator Architecture to Open Source Part #5: Authentication and Emailing'
 date = 2024-08-12T14:42:01+01:00
-draft = true
+draft = false
 [cover]
     image = 'img/exam-thumb.png'
 +++
@@ -591,7 +591,8 @@ env:
 
 We clearly done setting up everything, I will test the whole process from registring user and receiving verification code, generating an exam and receiving the email when it's ready, answering the questions and getting the scoreboard mail.
 
-//demo
+{{< video src="/videos/exam-demo-2.mp4" width="640" height="360" type="video/mp4" >}}
+
 
 ## Summary
 

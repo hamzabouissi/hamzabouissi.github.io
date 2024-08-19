@@ -1,7 +1,7 @@
 +++
 title = 'Transform AWS Exam Generator Architecture to Open Source Part #4: Exam Passing'
 date = 2024-08-12T14:40:10+01:00
-draft = true
+draft = false
 [cover]
     image = 'img/exam-thumb.png'
 +++
@@ -471,7 +471,8 @@ env:
 Now let’s test the entire process, we first open a side terminal for watching email-topic data.
 Visit the frontend app, select an exam, answer the questions, wait for second and here is the data sent to email-topic.
 
-/demo
+{{< video src="/videos/take-exam-front-demo.mp4" width="640" height="360" type="video/mp4" >}}
+
 
 ## Conclusion
 

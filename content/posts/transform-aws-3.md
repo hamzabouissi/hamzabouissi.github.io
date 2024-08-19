@@ -1,7 +1,7 @@
 +++
 title = 'Transform AWS Exam Generator Architecture to Open Source Part #3: Exam Generation'
 date = 2024-08-12T14:40:08+01:00
-draft = true
+draft = false
 [cover]
     image = 'img/exam-thumb.png'
 +++
@@ -70,7 +70,7 @@ we create a a repository and a release inside the helmfile.yaml
 ```yaml
 repositories:
   - name: kafka-operator
-    url: oci://quay.io/strimzi-helm
+    url: https://strimzi.io/charts
 
 releases:
   - name: kafka-operator
@@ -124,11 +124,13 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
   name: kafka-cluster
+  namespace: strimzi
   annotations:
     strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
 spec:
   kafka:
-    version: 3.5.1
+    version: 3.7.1
     # The replicas field is required by the Kafka CRD schema while the KafkaNodePools feature gate is in alpha phase.
     # But it will be ignored when Kafka Node Pools are used
     replicas: 3
@@ -147,7 +149,6 @@ spec:
       transaction.state.log.min.isr: 2
       default.replication.factor: 3
       min.insync.replicas: 2
-      inter.broker.protocol.version: "3.5"
     # The storage field is required by the Kafka CRD schema while the KafkaNodePools feature gate is in alpha phase.
     # But it will be ignored when Kafka Node Pools are used
     storage:
@@ -155,7 +156,7 @@ spec:
       volumes:
       - id: 0
         type: persistent-claim
-        size: 100Gi
+        size: 10Gi
         deleteClaim: false
   # The ZooKeeper section is required by the Kafka CRD schema while the UseKRaft feature gate is in alpha phase.
   # But it will be ignored when running in KRaft mode
@@ -163,7 +164,7 @@ spec:
     replicas: 3
     storage:
       type: persistent-claim
-      size: 100Gi
+      size: 10Gi
       deleteClaim: false
   entityOperator:
     userOperator: {}
@@ -172,10 +173,6 @@ spec:
 ```
 
 **topicOperator and userOperator** are for managing topics and user, **Zookeeper** definition is needed but it will be ignored later, and cluster is exposing two ports for TLS/Non-TLS Connection.
-
-To check the deployment status, here is the cluster deployed with 3 replicas
-
-/Image
 
 As we talked before the Minio Cluster will require a destination topic for sending bucket notifications(events), let’s create a one:
 
@@ -461,9 +458,6 @@ spec:
 
 The source needs the Kafka server connection URL, topic and the service name to send events to.
 
-Let’s open K9S inside the terminal and watch for pods in exam namespace, usually Knative services are scaled to 0 when there is no traffic. We upload a sample file in Minio, wait for a few moments and here is the knative service, we press for logs, and you see it’s the event invoked by Minio. Cool
-
-//demo
 
 ## Knative Service Building
 
@@ -632,8 +626,6 @@ helmfile apply
 
 Go to Console, upload a file, we notice a pod has been created from the knative service, wait for a few seconds and a new folder “question_bank” will be created with a JSON file holding the questions.
 
-//demo
-
 ## Generation Frontend
 
 Here comes the UI part, we copy the 3 files code from the repo and paste them over.
@@ -740,3 +732,4 @@ We Upload another test file and get the green mark for successful upload.
 ## Summary
 
 As we finished the generation part of the architecture, the next step will focus on adding "taking-exam" part.
+

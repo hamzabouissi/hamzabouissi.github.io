@@ -1,7 +1,7 @@
 +++
 title = 'Transform AWS Exam Generator Architecture to Open Source Part #1: Introduction'
 date = 2024-08-12T14:32:49+01:00
-draft = false
+draft = true
 [cover]
     image = 'img/exam-thumb.png'
 +++
