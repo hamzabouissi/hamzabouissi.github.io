@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.132.2</generator>
+    <generator>Hugo -- 0.133.0</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 30 May 2024 11:12:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/go/index.xml" rel="self" type="application/rss+xml" />
@@ -20,6 +20,208 @@
       <guid>//localhost:1313/posts/etcd_went_down/</guid>
       <description>Introduction with 1-Mistake On that shiny day, I got a project that required deploying a mongodb cluster, After a few searches, I found percona Operator, moved into installation section and copied the helm install command.
 After installing the required charts, I noticed that the pods weren&amp;rsquo;t in &amp;ldquo;running&amp;rdquo; state, so as a civilized kubernetes developer I ran &amp;ldquo;kubectl describe pod_name -n namespace&amp;rdquo;, and it turned out the problem was mongodb cluster requires either 3 or 5 nodes</description>
+      <content:encoded><![CDATA[<h2 id="introduction-with-1-mistake">Introduction with 1-Mistake</h2>
+<p>On that shiny day, I got a project that required deploying a mongodb cluster,
+After a few searches, I found percona Operator, moved into installation section and copied the helm install command.</p>
+<p>After installing the required charts, I noticed that the pods weren&rsquo;t in &ldquo;running&rdquo; state, so as a civilized kubernetes developer I ran &ldquo;kubectl describe pod_name -n namespace&rdquo;, and it turned out the problem was mongodb cluster requires either 3 or 5 nodes</p>
+<p>That&rsquo;s easy right ? !&lsquo;am using proxmox for my on-prem VMs and talos for my kubernetes OS, therefore I created a new VM with talos as The OS, disabled DHCP and added custom IP address corresponding to 192.168.1.116. Then, to add the VM a new <strong>&ldquo;worker&rdquo;</strong> node we use Talos magic wand:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">talosctl apply-config --insecure --nodes 192.168.1.116 --file worker.yaml
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>But life always hides a few surprises for you , I mistakenly ran another command which added the new VM as a controller plane.
+The result was <strong>having two etcd members</strong> fighting for their survivals, but our old master &ldquo;kubernetes&rdquo; wasn&rsquo;t happy with the result because both etcd instance went down with their kube-apiserver instances</p>
+<h2 id="2-mistake">2-Mistake</h2>
+<p>Because I am so smart, I thought the two controller nodes contradicted with etcd&rsquo;s happy state, so I searched for a solution that led me into either removing the newly created node or adding a new one to balance the cluster number, And hell yeah, Iam removing the second idiot VM.</p>
+<p>The node deleted from <strong>&ldquo;proxmox&rdquo;</strong>,then I thought the cluster will return to healthy state and I will kiss my &ldquo;IT&rdquo; girlfriend saying &ldquo;we&rsquo;re back to normal&rdquo; making her think I was mad at her for no reason, hmm but life surprises you once again, my dear.</p>
+<p>This time, etcd remained in an unhealthy state, claiming it couldn&rsquo;t find the joined node 192.168.1.116</p>
+<blockquote>
+<p><strong><em>NOTE:</em></strong> you can run &rsquo;talosctl -n 192.168.1.110 dmesg&rsquo; to view node logs .</p>
+</blockquote>
+<p>I thought, I saw a talosctl command that invokes a members list and I said to myself if the &ldquo;list&rdquo; subcommand exists, then the remove or delete one will exist also, Well it was there of course, but with a different name: &ldquo;remove-member&rdquo;. however, it didn&rsquo;t work, etcd wasn&rsquo;t responding to my requests even the command : &ldquo;talosctl members list&rdquo; wasn&rsquo;t showing anything.</p>
+<h2 id="solution-edit-the-etcd-snapshotted-db">Solution: Edit the Etcd Snapshotted DB</h2>
+<p>After long hours of reading Github issues, walking on the beach and talking with friends about rap songs I realized there was no solution other than to reset the controller node along with the etcd data directory.</p>
+<p>While reading the documentation on Talos &ldquo;Disator Recovery&rdquo;, I was made aware of the snapshot idea but wasn&rsquo;t thinking outside the box.
+Until I thought of editing the etcd database, talosctl didn&rsquo;t have a built-in command for this kind of operation so I went for snapshotting the database and inspecting it to see what I can edit there to remove the call for the our beloved dead node.</p>
+<p>Let&rsquo;s start with taking a snapshot, there are two commands referenced in the documentation but we will go with latter because etcd is unreachable</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">talosctl -n 192.168.1.110 cp /var/lib/etcd/member/snap/db .
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>I ran the &lsquo;file&rsquo; command to check file type which returned: <strong>data</strong>, hmm well this isn&rsquo;t enough linux, thanks for your time, On my second search on google I found the <strong>bbolt file type</strong> and there is this tool <strong>bbolt</strong> for inspecting bbolt databases, Cool now we playing our cards right.</p>
+<p>After a few tries, I found a bucket called &ldquo;members&rdquo;</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell"><span class="line"><span class="cl">bbolt buckets db
+</span></span><span class="line"><span class="cl">    alarm
+</span></span><span class="line"><span class="cl">    auth
+</span></span><span class="line"><span class="cl">    authRoles
+</span></span><span class="line"><span class="cl">    authUsers
+</span></span><span class="line"><span class="cl">    cluster
+</span></span><span class="line"><span class="cl">    key
+</span></span><span class="line"><span class="cl">    lease
+</span></span><span class="line"><span class="cl">    members &lt;- this one
+</span></span><span class="line"><span class="cl">    members_removed
+</span></span><span class="line"><span class="cl">    meta
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>hmm, I procceded into list members bucket keys and inspecting each value</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell"><span class="line"><span class="cl">bbolt keys db members
+</span></span><span class="line"><span class="cl">    3cf1b5e76f18a513
+</span></span><span class="line"><span class="cl">    920c1b791dddb17e
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell"><span class="line"><span class="cl">bbolt get db members 3cf1b5e76f18a513
+</span></span><span class="line"><span class="cl">    <span class="o">{</span><span class="s2">&#34;id&#34;</span>:4391491117268903187,<span class="s2">&#34;peerURLs&#34;</span>:<span class="o">[</span><span class="s2">&#34;https://192.168.1.110:2380&#34;</span><span class="o">]</span>,<span class="s2">&#34;name&#34;</span>:<span class="s2">&#34;talos-zrr-lqe&#34;</span><span class="o">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell"><span class="line"><span class="cl">bbolt get db members 920c1b791dddb17e
+</span></span><span class="line"><span class="cl">    <span class="o">{</span><span class="s2">&#34;id&#34;</span>:10523816636264067454,<span class="s2">&#34;peerURLs&#34;</span>:<span class="o">[</span><span class="s2">&#34;https://192.168.1.116:2380&#34;</span><span class="o">]</span>,<span class="s2">&#34;isLearner&#34;</span>:true<span class="o">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>here we go Kogoro Mouri, I found the culprit this member with key 920c1b791dddb17e must be deleted, so let&rsquo;s call the POLICE(ChatGPT) to exceel him out.
+We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from members buckets</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;log&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;go.etcd.io/bbolt&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Open the BoltDB database file
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">db</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">bbolt</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;db&#34;</span><span class="p">,</span> <span class="mo">0600</span><span class="p">,</span> <span class="kc">nil</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// The key we want to delete
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">key</span> <span class="o">:=</span> <span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;920c1b791dddb17e&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Update the database to delete the key from the &#34;members&#34; bucket
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">err</span> <span class="p">=</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Update</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">bbolt</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Get the bucket
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">bucket</span> <span class="o">:=</span> <span class="nx">tx</span><span class="p">.</span><span class="nf">Bucket</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;members&#34;</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">bucket</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">bbolt</span><span class="p">.</span><span class="nx">ErrBucketNotFound</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">// Delete the key
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">return</span> <span class="nx">bucket</span><span class="p">.</span><span class="nf">Delete</span><span class="p">(</span><span class="nx">key</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">})</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;Could not delete key: %v&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Key deleted successfully&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now, we can reset the etcd node and then recover from the backup db</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">talosctl -n 192.168.1.110 reset --graceful<span class="o">=</span><span class="nb">false</span> --reboot --system-labels-to-wipe<span class="o">=</span>EPHEMERAL
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>wait until the node become in preparing mode and run:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">talosctl -n &lt;IP&gt; bootstrap --recover-from<span class="o">=</span>./db.snapshot --recover-skip-hash-check
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>finally run, &lsquo;kubectl get nodes -o wide&rsquo; and you should see your nodes</p>
+<p>&lsquo;kubectl get pods&rsquo; to check your cluster previous state returned to normal</p>
+]]></content:encoded>
     </item>
   </channel>
 </rss>

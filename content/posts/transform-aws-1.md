@@ -4,6 +4,7 @@ date = 2024-08-12T14:32:49+01:00
 draft = false
 [cover]
     image = 'img/exam-thumb.png'
+tags = ['AWS','Kubernetes']
 +++
 
 

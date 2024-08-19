@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.132.2</generator>
+    <generator>Hugo -- 0.133.0</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 20 Apr 2023 15:36:32 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/rds/index.xml" rel="self" type="application/rss+xml" />
@@ -20,6 +20,48 @@
       <guid>//localhost:1313/posts/stress-swallows-you/</guid>
       <description>3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.
 So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database .</description>
+      <content:encoded><![CDATA[<blockquote>
+<p><em>3 days passes, and I&rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.</em></p>
+</blockquote>
+<p>So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database <strong>.</strong> We have been using PostgresSQL V14, so we just need the same version on the dev environment.</p>
+<p>I run through the documentation, to catch any command on how to deploy a database with underlying infrastructure(VPC, Subnet, Route Table, &hellip;). The first command I saw</p>
+<pre><code>copilot init
+</code></pre>
+<p>It fulfils the need of creating the underlying infrastructure, but it requires an application ready to deploy, but this is not the case now. A few minutes after and stumbled upon another command with the description &ldquo;creates a new <a href="https://aws.github.io/copilot-cli/docs/concepts/environments/">environment</a> where your services will live.&rdquo;</p>
+<pre><code>copilot env init
+</code></pre>
+<p>When I run the above command, it asked me to run <code>copilot app init</code> first. And here is the output of environment creation</p>
+<!-- raw HTML omitted -->
+<p>From my understanding of the output and manifest.yml file, it seems after running <code>copilot env deploy</code> it will create two public and private subnets on separate regions. So I proceeded with the command, and here is the output</p>
+<!-- raw HTML omitted -->
+<p>I googled a few terms I didn&rsquo;t understand like ECS, security groups, and DNS namespace to have basic knowledge of what happens in the background.</p>
+<p>The following task was deploying the database and this is when things got trickier, now one of the features of copilot is a command to deploy storage services like database, file system&hellip; etc. It supports two types of databases DynamoDB, Aurora</p>
+<p>Aurora seems a great option as it&rsquo;s fully compatible with PostgresSQL, so I tried to deploy a cluster using the following command</p>
+<pre><code> copilot storage init -n cluster -t Aurora --lifecycle environment --engine PostgreSQL
+</code></pre>
+<p>At the same time, I opened Thunderbird and I messaged the CTO asking if it was ok deploying Aurora instead of an RDS. I went back to the command and I found</p>
+<blockquote>
+<p>Couldn&rsquo;t find any workloads associated with app noteapp, try initializing one: copilot [svc/job] init .<br>
+✘ select a workload from noteapp : no workloads found in noteapp</p>
+</blockquote>
+<p>Well, the problem is obvious, I cannot deploy a storage service unless I create a service first and by service I mean containerized application.</p>
+<p>I walked through the documentation again, and I found a magical feature that says &ldquo;Modeling Additional Environment Resources with AWS CloudFormation&rdquo;, this feature gave me the ability to deploy resources on an environment based.</p>
+<p>That gave me goosebumps to understand CloudFormation, as it seems crucial in the next phases. The methodology was deploying a demo architecture to get comfortable with the services and the whole flow, I deployed one of the well-known architectures which is <strong>lambda function &amp; DynamoDB</strong> and here is my recap</p>
+<p>CloudFormation file structure consists of 3 main blocks <strong>Parameters</strong> (Optional), <strong>Resources</strong> (Required), and <strong>Outputs</strong> (Optional).</p>
+<ul>
+<li><strong>Resources</strong> block encapsulate the services we need to deploy, Each service requires 2 properties <strong>Type, Properties</strong> and each service has different Properties, an example of that for <code>Lambda Function</code> there are <strong>Handler</strong> , <strong>Runtime</strong> , <strong>Code</strong> properties while on <code>DynamoDB::Table</code> there are different properties <strong>AttributeDefinitions</strong> , <strong>KeySchema</strong> , <strong>ProvisionedThroughput</strong></li>
+</ul>
+<!-- raw HTML omitted -->
+<p>Now, AWS CLI has a built-in command for managing CloudFormation files, to create resources the first time the command is</p>
+<pre><code>aws cloudformation create-stack --stack-name resource_stack --template-body file://cloudformation.yml --capabilities CAPABILITY_NAMED_IAM
+</code></pre>
+<p>and for update</p>
+<pre><code>aws cloudformation update-stack --stack-name resource_stack --template-body file://cloudformation.yml --capabilities CAPABILITY_NAMED_IAM
+</code></pre>
+<p>An additional cool feature of AWS CloudFormation is the built-in managing dashboard where you can see your stacks and their status</p>
+<!-- raw HTML omitted -->
+<p>Then I started to think about integrating CloudFormation with Copilot until I looked through the window, and it was almost dark and my back was hurting, so I took the sign and went for a little bit of social life</p>
+]]></content:encoded>
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: Determination</title>
@@ -28,6 +70,248 @@ So at first, After I took the decision to use AWS copilot, I look at the task on
       <guid>//localhost:1313/posts/determination/</guid>
       <description>You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.
 So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused.</description>
+      <content:encoded><![CDATA[<blockquote>
+<p>You know that feeling ?, when you&rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&rsquo;t work then your mind tells you &ldquo;you need to change it a little bit&rdquo;.<br>
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.</p>
+</blockquote>
+<p>The last time I was left in &ldquo;Deploying RDS with copilot using CloudFormation&rdquo;, Yeah my approach to solving the problem is the same as before, typing a bunch of keywords and questions into Google, clicking on the first few links, if Stack Overflow then I detect responses with green mark and copy code, if it&rsquo;s an article, I find snippets and copy the ones that have RDS or DB on them</p>
+<p>I took the time to understand CloudFormation file structure and a few resource types</p>
+<p>At first, I found this snippet</p>
+<pre><code># Set AWS template version
+AWSTemplateFormatVersion: &quot;2010-09-09&quot;
+# Set Parameters
+Parameters:
+  EngineVersion:
+    Description: PostgreSQL version.
+    Type: String
+    Default: &quot;14.1&quot;
+  SubnetIds:
+    Description: Subnets
+    Type: &quot;List&lt;AWS::EC2::Subnet::Id&gt;&quot;
+  VpcId:
+    Description: Insert your existing VPC id here
+    Type: String
+
+Resources:
+  DBSubnetGroup:
+    Type: &quot;AWS::RDS::DBSubnetGroup&quot;
+    Properties:
+      DBSubnetGroupDescription: !Ref &quot;AWS::StackName&quot;
+      SubnetIds: !Ref SubnetIds
+
+  DatabaseSecurityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the database instance.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+
+  DBInstance:
+    Type: &quot;AWS::RDS::DBInstance&quot;
+    Properties:
+      AllocatedStorage: &quot;30&quot;
+      DBInstanceClass: db.t4g.medium
+      DBName: &quot;postgres&quot;
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: !Ref EngineVersion
+      MasterUsername: username
+      MasterUserPassword: password
+      StorageType: gp2
+      MonitoringInterval: 0
+      VPCSecurityGroups:
+      - !Ref DatabaseSecurityGroup
+</code></pre>
+<p>The following code will create 3 resources: <strong>DbInstance</strong> , <strong>DatabaseSecurityGroup</strong> , <strong>DBSubnetGroup</strong> , From my understanding the connection between those resources is a Database need to be created on private <strong>Subnets(DBSubnetGroup)</strong> on the other side for the database to accept connection it needs a security group( <strong>DatabaseSecurityGroup</strong> ) which should be on the same <strong>VPC</strong> as the <strong>Subnets</strong></p>
+<p>Now before I paste this code into <!-- raw HTML omitted -->environment/addons/rds.yml<!-- raw HTML omitted -->, I&rsquo;m going to remove the parameters as we have an alternate method of passing the <strong>SubnetIds</strong> and <strong>VpcId</strong>.</p>
+<p>CloudFormation gives the ability to import resources from previously created stacks with <code>Fn::ImportValue</code> function. In this case, after I run <code>copilot env deploy --name test</code> . Copilot create 2 CloudFormation stacks</p>
+<!-- raw HTML omitted -->
+<p>The first stack is the interesting one, after we open on <strong>mycompany-app-test</strong> stack, we click on the Outputs panel, and it should show us the created resources with export names that can be imported on our RDS stack.</p>
+<!-- raw HTML omitted -->
+<p>The two interesting export names are <strong>mycompany-app-test-PrivateSubnets</strong> , <strong>mycompany-app-test-VpcId</strong> , let&rsquo;s refactor our rds.yml file and add them</p>
+<pre><code># Set AWS template version
+AWSTemplateFormatVersion: &quot;2010-09-09&quot;
+# Set Parameters
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, job, or workflow is being deployed
+  Name:
+    Type: String
+    Description: The name of the service, job, or workflow being deployed.
+
+Resources:
+  DBSubnetGroup:
+    Type: &quot;AWS::RDS::DBSubnetGroup&quot;
+    Properties:
+      DBSubnetGroupDescription: !Ref &quot;AWS::StackName&quot;
+      SubnetIds:
+        !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets'}]
+  DatabaseSecurityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the database instance.
+      VpcId:
+        Fn::ImportValue: !Sub '${App}-${Env}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+
+  DBInstance:
+    Type: &quot;AWS::RDS::DBInstance&quot;
+    Properties:
+      AllocatedStorage: &quot;30&quot;
+      DBInstanceClass: db.t4g.medium
+      DBName: &quot;postgres&quot;
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: &quot;14.1&quot;
+      MasterUsername: username
+      MasterUserPassword: password
+      StorageType: gp2
+      MonitoringInterval: 0
+      VPCSecurityGroups:
+      - !Ref DatabaseSecurityGroup
+</code></pre>
+<p>As you see, I removed the previous parameters and replace them with a few parameters <strong>App</strong> , <strong>Env</strong> , <strong>Name</strong> which is copilot required add-ons parameters. Also for SubnetIds I import PrivateSubnets and split it because it must be passed as separate values</p>
+<p>After I run <code>copilot env deploy --name test</code> a nested stack will get created</p>
+<!-- raw HTML omitted -->
+<p>But how I&rsquo;m going to test if the database is working or accepting connection while it&rsquo;s not reachable on the public internet, well it seems I can create an ec2 instance on the public subnet and allow connection with the security group.</p>
+<p>Here is the refactored code</p>
+<pre><code># Set AWS template version
+AWSTemplateFormatVersion: &quot;2010-09-09&quot;
+# Set Parameters
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, job, or workflow is being deployed to.
+
+ 
+Resources:
+  DBSubnetGroup:
+    Type: &quot;AWS::RDS::DBSubnetGroup&quot;
+    Properties:
+      DBSubnetGroupDescription: !Ref &quot;AWS::StackName&quot;
+      SubnetIds:
+        !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets' }]
+  
+  DatabaseSecurityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the database instance.
+      VpcId: 
+        Fn::ImportValue:
+          !Sub '${App}-${Env}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+  
+  DBInstance:
+    Type: &quot;AWS::RDS::DBInstance&quot;
+    Properties:
+      AllocatedStorage: &quot;30&quot;
+      DBInstanceClass: db.t4g.medium
+      DBName: &quot;postgres&quot;
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: &quot;14.1&quot;
+      MasterUsername: username
+      MasterUserPassword: password
+      StorageType: gp2
+      MonitoringInterval: 0
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+
+  NewKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: !Sub ${App}-${Env}-EC2-RDS-KEYPAIR
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+  
+  EC2SecuityGroup:
+    Type: &quot;AWS::EC2::SecurityGroup&quot;
+    Properties:
+      GroupDescription: The Security Group for the ec2 instance.
+      VpcId: 
+        Fn::ImportValue:
+          !Sub '${App}-${Env}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+        
+  Ec2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: ami-05e8e219ac7e82eba
+      InstanceType: t2.micro
+      KeyName: !Ref NewKeyPair
+      SubnetId: !Select [&quot;0&quot;,!Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PublicSubnets' }]]
+      SecurityGroupIds:
+        - !Ref EC2SecuityGroup
+      
+      UserData: |
+        #!/bin/bash
+        sudo apt update
+        sudo apt upgrade
+        sudo apt install postgresql postgresql-contrib
+
+
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}'
+      
+
+
+Outputs:
+  ServerPublicDNS:
+    Description: &quot;Public DNS of EC2 instance&quot;
+    Value: !GetAtt Ec2Instance.PublicDnsName
+
+  DatabaseEndpoint:
+    Description: &quot;Connection endpoint for the database&quot;
+    Value: !GetAtt DBInstance.Endpoint.Address
+</code></pre>
+<p>A few things to notice, I added an Ec2Instance on a public subnet, a security group that allows only ssh port (22), meanwhile, the ImageId, InstanceType property are more tied to the region you&rsquo;re deploying to, I am using eu-west-3(I&rsquo;m not a French guy -_-). NewKeyPair is the ssh key to log into EC2, and finally the Outputs section for getting the EC2 instance and Database connection URL</p>
+<p>I rerun <code>copilot env deploy --name test</code> , wait for the stack to update, before connecting to ec2 an ssh file must be downloaded, the ssh key pair will be saved on AWS Parameter Store, here are the following steps to download it</p>
+<pre><code>aws ec2 describe-key-pairs --filters Name=key-name,Values=mycompany-app-test-E
+</code></pre>
+<p>The above command output.</p>
+<pre><code>key-05abb699beEXAMPLE
+</code></pre>
+<p>and to save the ssh key value</p>
+<pre><code>aws ssm get-parameter --name /ec2/keypair/key-05abb699beEXAMPLE --with-decrypt
+</code></pre>
+<p>Now, After I get the ssh file, try to connect to the server</p>
+<pre><code>ssh -i new-key-pair.pem ubuntu@ec2-host
+</code></pre>
+<p>I try to connect to RDS</p>
+<pre><code>psql -U username -d postgres -h database_host
+</code></pre>
+<!-- raw HTML omitted -->
+]]></content:encoded>
     </item>
   </channel>
 </rss>

@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.132.2</generator>
+    <generator>Hugo -- 0.133.0</generator>
     <language>en-us</language>
     <lastBuildDate>Tue, 10 Jan 2023 11:39:04 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/ci/cd-pipeline/index.xml" rel="self" type="application/rss+xml" />
@@ -21,6 +21,781 @@
       <description>Introduction Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.
 With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.
 In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.</description>
+      <content:encoded><![CDATA[<h3 id="introduction"><strong>Introduction</strong></h3>
+<p>Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.</p>
+<p>With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.</p>
+<p>In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.</p>
+<p>In the end, this tutorial will expand your knowledge of AWS Services and help you speed up your development and deployment process.</p>
+<p>Before starting, here is a playlist to enjoy reading with</p>
+<!-- raw HTML omitted -->
+<p>To accomplish this tutorial, you’ll need:</p>
+<ul>
+<li>an AWS account with administrative permissions</li>
+<li>an AWS CLI with a minimum version of 2.4.6</li>
+<li>a runnable React app hosted on GitHub</li>
+<li>basic knowledge of YAML file structure</li>
+<li>clone this <a href="https://github.com/hamzabouissi/simple-react-app">simple react app</a></li>
+</ul>
+<h2 id="creating-ci-pipeline"><strong>Creating CI Pipeline</strong></h2>
+<p>To build a resilient system, you need to add tests on your code then run them locally and on every push to version control. In this step, you will build a CI pipeline that triggers every pull request creation or update on your GitHub repository, the pipeline will run the desired tests and return a badge containing the status of the tests to your GitHub.</p>
+<p>Create the file  pull-request.yml  in your text editor:</p>
+<pre><code>nano pull-request.yml
+</code></pre>
+<p>Add the following CloudFormation code to the file, which builds a CodeBuildProject that defines a CI pipeline with GitHub integration:</p>
+<pre><code>Resources:
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: FrontBuildOnPull
+      ServiceRole: !GetAtt BuildProjectRole.Arn
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref BuildLogGroup
+          Status: ENABLED
+          StreamName: front_pull_request
+      EncryptionKey: &quot;alias/aws/s3&quot;
+      Artifacts:
+        Type: S3
+        Location: !Ref ArtifactBucket
+        Name: FrontPullRequest
+        OverrideArtifactName: true
+        EncryptionDisabled: true
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:4.0
+       
+      Source:
+        Type: GITHUB
+        Location: &quot;https://github.com/projectX/repoY&quot;
+        ReportBuildStatus: true
+      Triggers:
+        BuildType: BUILD
+        Webhook: true
+        FilterGroups:
+          - - Type: EVENT
+              Pattern: PULL_REQUEST_CREATED,PULL_REQUEST_UPDATED
+      Visibility: PUBLIC_READ
+      ResourceAccessRole: !Ref PublicReadRole
+</code></pre>
+<p>I will briefly explain the CloudFormation template structure, so you can get a general understanding of CloudFormation files that guides you through the next steps.</p>
+<p>The majority of CloudFormation template files will contain Parameters(Optional) and Resources(Required), Outputs(Optional), each block on the Resources is a Service, and every Service contains Type and Properties. The type is referred to as AWS Service or a Custom Function and each Type has a different set of properties.</p>
+<p>Let’s analyze the above Code to understand better. Here we have a Resources block that contains three Services. The CodeBuildProject refers to AWS::CodeBuild::Project which is an AWS Service for <a href="https://aws.amazon.com/codebuild/">CodeBuild</a>. The CodeBuild has a set of properties, you can find them here <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-codebuild-project.html">properties</a>, I will explain each property functionality and why we’re adding it.</p>
+<h3 id="give-codebuild-the-required-permissions"><strong>Give CodeBuild the required permissions</strong></h3>
+<p>For CodeBuild to work we need to assign the ServiceRole an IAM Role to give CodeBuild the right to access other AWS services like secrets, S3, and logs.</p>
+<pre><code>  ...
+  ServiceRole: !GetAtt BuildProjectRole.Arn
+  ...
+  ...
+</code></pre>
+<p><!-- raw HTML omitted -->BuildProjectRole<!-- raw HTML omitted --> is a role that assumes the principal “codebuild.amazonaws.com” the permission to use a set of services on our behalf of us, more reading about <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html">AWS::IAM::ROLE</a></p>
+<p>After, we need to ask ourselves what services CodeBuild must have access to and what we want to access on each of the services:</p>
+<ul>
+<li>Codebuild needs to create and update the test reports.</li>
+<li>CodeBuild needs to store the CI process logs inside a logs group.</li>
+<li>CodeBuild needs to access the secrets manager to get some secret credentials ex: CYPRESS_KEY. - CodeBuild needs to get and store React build folder on S3.</li>
+</ul>
+<p>Now after we defined our requirements, we create BuildProjectPolicy which is an <a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-policy.html">AWS::IAM::Policy</a> for BuildProjectRole that contains the list of statements, and each statement is composed of a set of actions.</p>
+<pre><code>BuildProjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      
+  BuildProjectPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: BuildProjectRole
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-CodeBuildPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            # Create and update test report
+
+            Resource: &quot;*&quot;
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+            # Get and store React build folder on S3
+
+            Resource: &quot;*&quot;
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            # Store the CI process logs inside a logs group
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+              - secretsmanager:*
+            # Get secret creedentials ex: CYPRESS_KEY
+            
+            Resource: &quot;*&quot;
+      Roles:
+        - !Ref BuildProjectRole
+</code></pre>
+<h3 id="access-and-store-codebuild-logs"><strong>Access and Store CodeBuild Logs</strong></h3>
+<p>Logs are an important key of DevOps because it adds the visibility aspect to the infrastructure, so gather logs as much as you can. In our case, to enable logs for <!-- raw HTML omitted -->CodeBuild<!-- raw HTML omitted --> project we create <!-- raw HTML omitted -->LogsConfig<!-- raw HTML omitted --> property.</p>
+<pre><code>  ...
+  ...
+  LogsConfig:
+    CloudWatchLogs:
+      GroupName: !Ref BuildLogGroup
+      Status: ENABLED
+      StreamName: front_pull_request
+  ...
+  ...
+</code></pre>
+<p>Now, we need to create a <!-- raw HTML omitted -->LogGroup<!-- raw HTML omitted --> to which CodeBuild pushes logs to</p>
+<pre><code>BuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: frontend_build_on_pull
+      RetentionInDays: 7
+</code></pre>
+<p><!-- raw HTML omitted -->RetentionInDays<!-- raw HTML omitted --> is the period after which the logs expire.</p>
+<h3 id="access-and-store-react-builds"><strong>Access and Store React Builds</strong></h3>
+<p>After successfully building and testing the project, we should store the build folder on S3 so we can access it again when the developer wants to see his changes. So we create an Artifacts property that stores build on an S3 bucket called “ArtifactBucket”</p>
+<pre><code>  ...
+  ...
+  Artifacts:
+    Type: S3
+    Location: !Ref ArtifactBucket
+    Name: FrontPullRequest
+    OverrideArtifactName: true
+    EncryptionDisabled: true
+  ...
+  ...
+</code></pre>
+<p><!-- raw HTML omitted -->OverrideArtifactName<!-- raw HTML omitted --> we use to customize the path where we store the builds.</p>
+<p><!-- raw HTML omitted -->EncryptionDisabled<!-- raw HTML omitted --> we disabled it because we don’t need custom encryption in our case, we will be using the default one instead.</p>
+<pre><code>ArtifactBucket:
+  Type: 'AWS::S3::Bucket'
+  DeletionPolicy: Delete
+  Properties:
+    BucketName: &quot;some-random-unique-bucket-name&quot;
+    BucketEncryption:
+      ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+    PublicAccessBlockConfiguration:
+      BlockPublicAcls: true
+      BlockPublicPolicy: true
+      IgnorePublicAcls: true
+      RestrictPublicBuckets: true
+</code></pre>
+<p><!-- raw HTML omitted -->ArtifactBucket<!-- raw HTML omitted --> is a resource block that refers to AWS::S3::Bucket, also we should add some properties to restrict public access to build folders and define how the data must be encrypted when it gets stored.</p>
+<p><!-- raw HTML omitted -->Name<!-- raw HTML omitted -->: you need to change to your unique bucket name, the name must be unique across all AWS buckets.</p>
+<p><!-- raw HTML omitted -->BucketEncryption<!-- raw HTML omitted --> we use Amazon S3 server-side encryption which uses 256-bit Advanced Encryption Standard(AES256).</p>
+<p><!-- raw HTML omitted -->PublicAccessBlockConfiguration<!-- raw HTML omitted --> this property blocks all public access to the public and ignores any policy that allows public visibility of the bucket.</p>
+<h3 id="codebuild-ci-environment"><strong>CodeBuild CI Environment</strong></h3>
+<p>For the CI to work, you must provide information about the CI environment. A build environment represents a combination of the operating system, programming language runtime, and tools that CodeBuild uses to run a build.</p>
+<pre><code>  ...
+  ...
+  Environment:
+    Type: LINUX_CONTAINER
+    ComputeType: BUILD_GENERAL1_MEDIUM
+    Image: aws/codebuild/amazonlinux2-x86_64-standard:4.0
+  ...
+</code></pre>
+<p><!-- raw HTML omitted -->Type<!-- raw HTML omitted --> this is the OS type, which is Linux for our case.</p>
+<p><!-- raw HTML omitted -->ComputeType<!-- raw HTML omitted -->: this provides the CodeBuild with information about the computing resources it’s allowed to use (7 GB Memory,4vCPU,128GB Disk ).</p>
+<p><!-- raw HTML omitted -->Image<!-- raw HTML omitted -->: A docker image to use during the build which provides the environment with a set of tools and runtimes, here is the <a href="https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html">documentation</a> for better details</p>
+<h3 id="codebuild-trigger-and-repo-linking"><strong>CodeBuild Trigger and Repo Linking</strong></h3>
+<p>To fire up the build process whenever a pull request is created or updated, you need to add two properties: Source, Triggers</p>
+<pre><code>  ...
+  ...
+  Source:
+    Type: GITHUB
+    Location: &quot;https://github.com/projectX/repoY&quot;
+    ReportBuildStatus: true
+  Triggers:
+    BuildType: BUILD
+    Webhook: true
+    FilterGroups:
+      - - Type: EVENT
+          Pattern: PULL_REQUEST_CREATED,PULL_REQUEST_UPDATED
+  ...
+  ...
+</code></pre>
+<p><!-- raw HTML omitted -->Source<!-- raw HTML omitted --> defines the type of version control and the location, you need to change the <!-- raw HTML omitted -->Location<!-- raw HTML omitted --> property to your desired repository, on the other side to report the build status back to version control(Github) you turn <!-- raw HTML omitted -->ReportBuildStatus<!-- raw HTML omitted --> to true. <!-- raw HTML omitted -->Triggers<!-- raw HTML omitted --> specify webhooks that trigger The AWS CodeBuild build.</p>
+<p>To allow Codebuild access to your repository, you need to create a personal access token and pass it to CodeBuild so it can access your repo on your behalf, This can be done in two steps:</p>
+<p>1- Generate a personal token from your GitHub account:</p>
+<p>Visit the <a href="https://github.com/settings/tokens/new">Personal access tokens Github page</a>, then select “Full control of private repositories” and “Full control of repository hooks” and click Generate token.</p>
+<p>2- Pass down the generated token to AWS Codebuild credentials: Run the following command to generate an import-source-credentials.json  file on your local :</p>
+<pre><code>aws codebuild import-source-credentials --generate-cli-skeleton
+</code></pre>
+<p>After, we need to modify  import-source-credentials.json  and fill it with your credentials:</p>
+<ul>
+<li>
+<p>auth_type: PERSONAL_ACCESS_TOKEN</p>
+</li>
+<li>
+<p>serverType: GITHUB</p>
+</li>
+<li>
+<p>username: your GitHub username</p>
+</li>
+<li>
+<p>token: the generated token from the previous step.</p>
+<p>aws codebuild import-source-credentials &ndash;cli-input-json file://import-source-credentials.json</p>
+</li>
+</ul>
+<p>To test that your command runs successfully, run the following command to list your CodeBuild credentials:</p>
+<pre><code>aws codebuild list-source-credentials
+</code></pre>
+<p>Now when CodeBuild starts running it will search in your source code for a file named buildspec.yml, by definition :</p>
+<p>A <em><!-- raw HTML omitted -->buildspec<!-- raw HTML omitted --></em> is a collection of build commands and related settings, in YAML format, that CodeBuild uses to run a build.</p>
+<p>Here is an example of buildspec.yml from our demo app :</p>
+<pre><code>version: 0.2
+
+phases:
+  install:
+    commands:
+      - npm install 
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - echo &quot;run some pre-check&quot;
+      #- npm run format:check
+      #- npm run lint:check
+  build:
+    on-failure: ABORT
+    commands:
+      - echo &quot;run tests&quot;
+      # - npm run-script start &amp; npx wait-on http://localhost:3000
+      # - npx cypress run --record --key ${CYPRESS_KEY}
+
+  post_build:
+    commands:
+      - |
+          npm run build
+
+artifacts:
+  # include all files required to run application
+  # we include only the static build files
+  files:
+    - '**/*'
+  name: $CODEBUILD_WEBHOOK_TRIGGER
+  base-directory: 'dist'
+</code></pre>
+<p>Our CI contains different phases (install, pre_build …etc), finally, post_build will run when all the previous steps exited successfully.</p>
+<p><!-- raw HTML omitted -->post_build<!-- raw HTML omitted --> will create a  dist folder and then CodeBuild will upload the dist folder to S3 under CODEBUILD_WEBHOOK_TRIGGER path that will be  /pr/{pr_number}.</p>
+<p>For example, if a pull request gets created with the number 1, then after CI builds successfully the build folder will get stored on ArtifactBucket under path <strong>/pr/1/</strong>.</p>
+<h3 id="ci-logs-public-visibility-to-users"><strong>CI logs Public Visibility To Users</strong></h3>
+<p>The following property gives developers access to see build logs without having an AWS account :</p>
+<pre><code>...
+...
+Visibility: PUBLIC_READ
+ResourceAccessRole: !Ref PublicReadRole
+...
+</code></pre>
+<p>then the PublicReadRole must allow access to logs and S3</p>
+<pre><code>  PublicReadRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service: [codebuild.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+
+  PublicReadPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: PublicBuildPolicy
+      PolicyDocument:
+        Version: &quot;2012-10-17&quot;
+        Statement:
+          - Effect: Allow
+            Action:
+              - &quot;logs:GetLogEvents&quot;
+            Resource:
+              - !Sub &quot;arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BuildLogGroup}:*&quot;
+          - Effect: Allow
+            Action:
+              - &quot;s3:GetObject&quot;
+              - &quot;s3:GetObjectVersion&quot;
+            Resource:
+              - Fn::Sub:
+                - &quot;${ArtifcatArn}/*&quot;
+                - {ArtifcatArn: !GetAtt ArtifactBucket.Arn}
+      Roles:
+        - !Ref PublicReadRole
+</code></pre>
+<h3 id="sum-it-up"><strong>Sum It Up</strong></h3>
+<p>After you understand the full picture of CodeBuild Service and its dependency, you can edit pull-request.yml:</p>
+<pre><code>nano pull-request.yml
+</code></pre>
+<p>replace its content with the following code</p>
+<pre><code>Resources:
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: FrontBuildOnPull
+      ServiceRole: !GetAtt BuildProjectRole.Arn
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref BuildLogGroup
+          Status: ENABLED
+          StreamName: front_pull_request
+      EncryptionKey: &quot;alias/aws/s3&quot;
+      Artifacts:
+        Type: S3
+        Location: !Ref ArtifactBucket
+        Name: FrontPullRequest
+        OverrideArtifactName: true
+        EncryptionDisabled: true
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:4.0
+       
+      Source:
+        Type: GITHUB
+        Location: &quot;https://github.com/projectX/repoY&quot;
+        ReportBuildStatus: true
+      Triggers:
+        BuildType: BUILD
+        Webhook: true
+        FilterGroups:
+          - - Type: EVENT
+              Pattern: PULL_REQUEST_CREATED,PULL_REQUEST_UPDATED
+      Visibility: PUBLIC_READ
+      ResourceAccessRole: !Ref PublicReadRole
+
+  BuildProjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      
+  BuildProjectPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: BuildProjectRole
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-CodeBuildPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            # Create and update test report
+
+            Resource: &quot;*&quot;
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+            # Get and store React build folder on S3
+
+            Resource: &quot;*&quot;
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            # Store the CI process logs inside a logs group
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+              - secretsmanager:*
+            # Get secret creedentials ex: CYPRESS_KEY
+            
+            Resource: &quot;*&quot;
+      Roles:
+        - !Ref BuildProjectRole
+
+  BuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: frontend_build_on_pull
+      RetentionInDays: 7
+  
+  ArtifactBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: &quot;some-random-unique-bucket-name&quot;
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  
+  PublicReadRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service: [codebuild.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+
+  PublicReadPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: PublicBuildPolicy
+      PolicyDocument:
+        Version: &quot;2012-10-17&quot;
+        Statement:
+          - Effect: Allow
+            Action:
+              - &quot;logs:GetLogEvents&quot;
+            Resource:
+              - !Sub &quot;arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BuildLogGroup}:*&quot;
+          - Effect: Allow
+            Action:
+              - &quot;s3:GetObject&quot;
+              - &quot;s3:GetObjectVersion&quot;
+            Resource:
+              - Fn::Sub:
+                - &quot;${ArtifcatArn}/*&quot;
+                - {ArtifcatArn: !GetAtt ArtifactBucket.Arn}
+      Roles:
+        - !Ref PublicReadRole
+</code></pre>
+<p>To test our code, move into the pull-request.yml file path and run</p>
+<pre><code>aws cloudformation create-stack --stack-name pull-request-preview-stack --template-body file://pull-request.yml --capabilities CAPABILITY_NAMED_IAM
+</code></pre>
+<p>Now visit <a href="https://console.aws.amazon.com/cloudformation/home">Cloudformation Console</a> and you should see a stack with the name pull-request-preview-stack and its status CREATE_IN_PROGRESS or CREATE_COMPLETE</p>
+<h2 id="serving-content-with-cloudfront"><strong>Serving Content With CloudFront</strong></h2>
+<p>CloudFront is a content delivery network(CDN), CDN can speed up the serving of your static content by caching in the edges that are near you, it is less expensive and it allows you to add a TLS certificate(HTTP) and domain to your static content.</p>
+<p>On the other side, we don’t need all of these things but what we want from CloudFront is Lambda@Edge which will allow us to redirect requests by the header to right S3 bucket folder. To explain more, let’s suppose we made 2 pull-request by numbers 121,122, after 2 of them are tested and built successfully, they will get stored in a folder named pr on the Artifact Bucket with the following structure:</p>
+<p>pr/</p>
+<p>121/</p>
+<ul>
+<li>assets</li>
+<li>index.html</li>
+<li>…</li>
+<li>…</li>
+</ul>
+<p>122/</p>
+<ul>
+<li>assets</li>
+<li>index.html</li>
+<li>…</li>
+<li>…</li>
+</ul>
+<p>Now when Lambda@Edge comes to play, every request that comes to the CloudFront host(which is a random subdomain under CloudFront xxxxx.cloudfront.net) with a pull-request header and value 122 will be redirected to the folder “122” to serve “122” pull request contents.</p>
+<p>In this section, you will learn how to serve S3 content from a CDN and customize users requests by different criteria like (header,query-params…etc) and also build a trigger whenever a build runs successfully, it clears the cache of a specific pull request on the CDN for the new contents.</p>
+<h3 id="creating-cloudfront"><strong>Creating CloudFront</strong></h3>
+<p>Let’s edit pull-request.yml</p>
+<pre><code>nano pull-request.yml
+</code></pre>
+<p>and add a CloudFront Distribution Service that will primarily serve index.html from ArtifactBucket</p>
+<pre><code>Distribution:
+  Type: AWS::CloudFront::Distribution
+  Properties:
+    DistributionConfig:
+      Origins:
+        - DomainName: !Sub ${ArtifactBucket}.s3.${AWS::Region}.amazonaws.com
+          Id: S3Origin
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${OriginAccessIdentity}
+      Enabled: true
+      DefaultRootObject: index.html
+      Logging:
+        Bucket: !Sub ${DistributionBucket}.s3.${AWS::Region}.amazonaws.com
+      DefaultCacheBehavior:
+        TargetOriginId: S3Origin
+        CachePolicyId: !Ref DistributionCachingPolicy
+        ViewerProtocolPolicy: https-only
+      PriceClass: PriceClass_100
+</code></pre>
+<p>Cloudfront has 4 major properties that we will explain briefly</p>
+<p><!-- raw HTML omitted -->Origins<!-- raw HTML omitted -->: This property refers to where CloudFront retrieves the content, we will be adding only Artifact Bucket, also there is a sub-property <!-- raw HTML omitted -->OriginAccessIdentity<!-- raw HTML omitted --> that restricts access to ArtifactBucket bucket only from CloudFront.</p>
+<p><!-- raw HTML omitted -->DefaultRootObject<!-- raw HTML omitted -->: The default file that CloudFront will render from the bucket</p>
+<p><!-- raw HTML omitted -->PriceClass<!-- raw HTML omitted -->: To how many regions should our content get cached? we choose PriceClass_100 that’s the minimum value because we don’t care about that.</p>
+<p><!-- raw HTML omitted -->Logging<!-- raw HTML omitted -->: We should collect access logs, So we store them in a bucket “DistributionBucket”</p>
+<p><!-- raw HTML omitted -->DefaultCacheBehavior<!-- raw HTML omitted --> is a required property so we will add it, but we don’t need any caching behavior from CloudFront to test the pull requests. DefaultCacheBehavior contains 3 required attributes:</p>
+<ul>
+<li>
+<p><strong>TargetOriginId</strong> points to one of our Origins which is S3Origin the only origin we have.</p>
+</li>
+<li>
+<p><strong>ViewerProtocolPolicy</strong> controls whether the user is redirected to HTTPS or uses HTTP or both, we chose https-only.</p>
+</li>
+<li>
+<p><strong>CachePolicyId</strong> , is an important property because we need to allow CloudFront to pass certain headers to Lambda@Edge and the available <a href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html#managed-cache-policies-list">managed cache policies</a> don’t allow that, so creating a custom cache policy will help. here is the code for the custom cache policy that allows passing the pull-request header to Lambda@Edge.</p>
+<p>DistributionCachingPolicy:
+Type: AWS::CloudFront::CachePolicy
+Properties:
+CachePolicyConfig:
+Comment: &ldquo;Allow pass of header and query params to cloudfront&rdquo;
+DefaultTTL: 86400
+MaxTTL: 31536000
+MinTTL: 80400
+Name: CacheForHeaderAndQuery
+ParametersInCacheKeyAndForwardedToOrigin:
+CookiesConfig:
+CookieBehavior: none
+EnableAcceptEncodingGzip: false
+HeadersConfig:
+HeaderBehavior: whitelist
+Headers:
+- pull-request
+QueryStringsConfig:
+QueryStringBehavior: all</p>
+</li>
+</ul>
+<p>Now the problem we’re facing is that our pull requests content is stored under the PR folder so we cannot serve them as Cloudfront doesn’t allow dynamic selection of contents. So the solution is rerouting the user request before it reaches the S3 bucket and choosing the right path depending on the custom header(pull-request) he passes on the request.</p>
+<h3 id="choose-the-right-path-with-lambdaedge"><strong>Choose The Right Path with Lambda@Edge</strong></h3>
+<p>To add Lambda@Edge to CloudFront we will modify DefaultCacheBehavior to look like this:</p>
+<pre><code>DefaultCacheBehavior:
+  TargetOriginId: S3Origin
+  ViewerProtocolPolicy: redirect-to-https
+  CachePolicyId: !Ref DistributionCachingPolicy
+  LambdaFunctionAssociations:
+    - EventType: 'origin-request'
+      LambdaFunctionARN: !Ref VersionedLambdaFunction
+</code></pre>
+<p>Let’s create the lambda function, the programming language will be <strong>python</strong> :</p>
+<pre><code>LambdaFunction:
+  Type: 'AWS::Lambda::Function'
+  Properties:
+    FunctionName: &quot;cloudfront_lambda&quot;
+    Code:
+      ZipFile: !Sub |
+        import re
+        import boto3 
+
+        def handler(event, context):
+            client = boto3.client(&quot;s3&quot;)
+            bucket = &quot;front-end-preview-bucket&quot;
+            response = client.list_objects_v2(Bucket=bucket,Prefix=&quot;pr/&quot;,Delimiter=&quot;/&quot;)
+            prs = [p['Prefix'].split('/')[1] for p in response['CommonPrefixes']]
+
+            request = event['Records'][0]['cf']['request']
+            print(request)
+
+            headers = request['headers']
+            pr = headers.get('pull-request',None)
+            
+            
+            if pr is None:
+              print(f&quot;{pr} not found&quot;)
+              response = {
+                'status': '404',
+                'statusDescription': 'No Found',
+              }
+              return response
+            
+            pr = pr[0]['value']
+
+            if not pr.isdigit() or not (pr in prs):
+              print(f&quot;{pr} not good&quot;)
+              response = {
+                'status': '404',
+                'statusDescription': 'No Found',
+              }
+              return response
+
+            pr = int(pr)
+            request['uri'] = f&quot;/pr/{pr}{request['uri']}&quot;
+
+            print(request)
+            return request
+
+    Handler: 'index.handler'
+    MemorySize: 128
+    Role: !GetAtt 'LambdaRole.Arn'
+    Runtime: 'python3.9'
+    Timeout: 5
+
+  LambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - 'lambda.amazonaws.com'
+            - 'edgelambda.amazonaws.com'
+          Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: FetchContentFromBucket
+          PolicyDocument:
+            Version: &quot;2012-10-17&quot;
+            Statement:
+              - Effect: Allow
+                Action:
+                  - &quot;s3:GetObject&quot;
+                  - &quot;s3:ListBucket&quot;
+                  - &quot;s3:GetObjectVersion&quot;
+                Resource:
+                  - Fn::Sub:
+                    - &quot;${ArtifcatArn}/*&quot;
+                    - {ArtifcatArn: !GetAtt ArtifactBucket.Arn}
+                 
+      ManagedPolicyArns:
+      - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      - &quot;arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole&quot;
+</code></pre>
+<p>To summarize what function do, we fetch all current pull requests that are stored on the bucket and whenever a user makes a request, we check the header(pull-request) value and see if it’s available, if yes we rewrite the request URI to <strong>“/pr/{pr}{request[‘uri’]}”</strong>, if no we return 404 response.</p>
+<p>Also, we assign Lambda different policies, some are managed policies like :</p>
+<ul>
+<li>AWSLambdaBasicExecutionRole</li>
+<li>AWSLambdaVPCAccessExecutionRole</li>
+</ul>
+<p>and others are custom like FetchContentFromBucket to query React build folder from ArtifactBucket.</p>
+<h3 id="a-little-demo"><strong>A Little Demo</strong></h3>
+<p>After understanding what each service does, we update our pull-request.yml file with the above code. then we update cloud formation with the following command:</p>
+<pre><code>aws cloudformation update-stack --stack-name pull-request-preview-stack --template-body file://pull-request.yml --capabilities CAPABILITY_NAMED_IAM
+</code></pre>
+<p>Now visit <a href="https://console.aws.amazon.com/cloudformation/home">Cloudformation Console</a> and you should see a stack with the name pull-request-preview-stack and its status <strong>UPDATE_IN_PROGRESS</strong> or <strong>UPDATE_COMPLETE</strong>.</p>
+<p>To get the CloudFront endpoint Click on pull-request-preview-stack on Cloudformation Console and Click Outputs</p>
+<!-- raw HTML omitted -->
+<p>What’s missing now, is creating a pull request in our repository. first, we need a new branch</p>
+<pre><code>git switch -c feature/test_preview
+</code></pre>
+<p>then let’s make some changes and finally add, commit, push</p>
+<pre><code>git add .
+git commit -m &quot;it's getting darker :black:&quot;
+git push --set-upstream origin feature/test_preview
+</code></pre>
+<p>Now let’s wait until the tests pass successfully 👀</p>
+<!-- raw HTML omitted -->
+<p>If you visit the CloudFront Endpoint you will get a 404 page, this happens because you didn’t pass a pull-request number as a header. So to achieve this we need to install a chrome extension “<a href="https://modheader.com/">mobheader</a>”</p>
+<!-- raw HTML omitted -->
+<p>you replace 271 with your pull request number that you find on the Github pull request page</p>
+<p>Refresh now, Taddaaaa 🎊</p>
+<!-- raw HTML omitted -->
+<p>Now, Let&rsquo;s suppose that you made a pull request and requested one of your teammates to make a review for you and he reclaimed something buggy is happening, so you went to investigate the issue and solved it and now you’re pushing the updates. After your CI builds and tests successfully, you visit the CloudFront URL and you find the bug still exists, why ?!.</p>
+<p>Well it’s because CloudFront caches the build folder on its servers and you need to invalidate the cache from the servers then CloudFront will request the files again from S3</p>
+<p>So the approach will be creating a Lambda Function that gets triggered whenever the builds run successfully, The function takes CloudFront DistributionId as an environment variable and make an invalidation request to /pr/{pr_number} subfolder</p>
+<pre><code>EventCloudFrontLambda:
+  Type: 'AWS::Events::Rule'
+  Properties:
+    Description: Invalidate Cloudfront after a successful build
+    State: ENABLED
+    EventPattern:
+      source:
+        - aws.codebuild
+      detail-type:
+        - CodeBuild Build State Change
+      detail:
+        build-status:
+          - SUCCEEDED
+        project-name:
+          - !Ref CodeBuildProject
+    Targets:
+      -
+        Arn: !GetAtt InvalidateCloudFront.Arn
+        Id: &quot;TargetFunctionV1&quot;
+
+  InvalidateCloudFront:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: &quot;invalidate_cloudfront_from_codebuild_lambda&quot;
+      Environment:
+        Variables:
+          DistributionId: !GetAtt Distribution.Id
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import uuid
+          import os
+
+          def handler(event, context):
+              print(event)
+              artifict = event['detail']['additional-information']['artifact']['location']
+              pr = artifict.split(&quot;/&quot;)[2]
+
+              distribution_id = os.getenv(&quot;DistributionId&quot;)
+
+              print(distribution_id)
+
+              client = boto3.client(&quot;cloudfront&quot;)
+              response = client.create_invalidation(
+                  DistributionId=distribution_id,
+                  InvalidationBatch={
+                      'Paths': {
+                          'Quantity': 1,
+                          'Items': [
+                              f'/pr/{pr}/*',
+                          ]
+                      },
+                      'CallerReference': str(uuid.uuid4())
+                  }
+              )
+
+              return {&quot;status&quot;:200}
+      Handler: 'index.handler'
+      MemorySize: 128
+      Role: !GetAtt 'LambdaRole.Arn'
+      Runtime: 'python3.9'
+      Timeout: 15
+
+  InvalidateCloudFrontLogs:
+    Type: AWS::Logs::LogGroup
+    DependsOn: InvalidateCloudFront
+    Properties:
+      LogGroupName: !Sub &quot;/aws/lambda/${InvalidateCloudFront}&quot;
+      RetentionInDays: 7
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref InvalidateCloudFront
+      Action: &quot;lambda:InvokeFunction&quot;
+      Principal: &quot;events.amazonaws.com&quot;
+      SourceArn: !GetAtt EventCloudFrontLambda.Arn
+</code></pre>
+<h3 id="test-updating-the-pull-request-nbspcode"><strong>Test Updating The Pull-request  Code</strong></h3>
+<p>Let’s make some changes, if you cloned my repository you can change the index.json file</p>
+<p>and replace  “Hello World War 3!  with “Hello World Peace”</p>
+<p>and let’s wait for the builds to run successfully and recheck again our preview</p>
+<h2 id="challenge-for-you"><strong>Challenge For You</strong></h2>
+<p>As our pull request creates a directory on S3, it is a waste of storage and money if we leave the directory on S3 after merging the pull request.</p>
+<p>So the challenge will be creating a GitHub action workflow that will delete the folder from S3 after merging the pull request. one of the requirements is using AWS OpenID Connect.</p>
+<p>Don’t hesitate to email me, It will be a pleasure for me to review your work 😊</p>
+<h2 id="summary"><strong>Summary</strong></h2>
+<p>In this article, we walked into different AWS Services(CodeBuild, Cloudfront,S3), we understand the mechanism of AWS IAM finally we learned how to create and deploy our services with Cloudformation</p>
+<p>Thanks for your time, stay tuned for new articles.</p>
+]]></content:encoded>
     </item>
   </channel>
 </rss>

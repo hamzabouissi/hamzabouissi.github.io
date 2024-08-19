@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.132.2</generator>
+    <generator>Hugo -- 0.133.0</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 01 Jul 2024 11:39:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/helm/index.xml" rel="self" type="application/rss+xml" />
@@ -20,6 +20,1172 @@
       <guid>//localhost:1313/posts/guardians_of_hell/</guid>
       <description>Introduction It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.
 One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</description>
+      <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
+<p>It&rsquo;s been a nearly 3 months on my journey of learning kubernetes,&hellip;.</p>
+<p>One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</p>
+<p>Then I asked myself wouldn&rsquo;t there be an open source alternative to that? Something I can play with and maybe apply to my customers&rsquo; on-premise architecture?</p>
+<p>Well, I bet it exists.</p>
+<h2 id="open-source-solution">Open Source Solution</h2>
+<p>It seems the open source community has a lot to offer in the identity management area. A quick Google search or ChatGPT prompt &ldquo;open source identity &amp; access management&rdquo; will display quite a few interesting products. The list is:</p>
+<p>Keycloak
+Zitadel
+FusionAuth
+Ory products</p>
+<p>My decision was to go with &ldquo;Ory open source products&rdquo;. I quite liked their approach of decoupling the functionalities into separate services (Hydra, Kratos, Oathkeeper) so even if you don&rsquo;t like one of their products, you can replace it with another project. The documentation was quite clear but needed some improvements, and the community was kind of active on both Slack and GitHub.</p>
+<p>here is a diagram of ory products</p>
+<p><img loading="lazy" src="/img/ory_arch.png" alt="ory_arch"  />
+</p>
+<h2 id="explain-different-terminologies">Explain Different Terminologies</h2>
+<p>I have built as a backend developer an authentication and authorization mechanism integrating google, github ..etc, but this time it was different because am delegating those features into services.</p>
+<p>I will be honest with you, learning the different terminologies (Identity management, authorization server, OIDC,Oauth2, policy as code, opaque vs jwt) wasn&rsquo;t that smooth, it took me a lot of time searching through articles and asking chatGPT, until I got my final summary that goes like:</p>
+<ul>
+<li>OpenId: Is an authentication protocol, it allows an app to log into your social account, getting the desired information(email,username,image) without sharing your secret credentials(password).</li>
+<li>Oauth2: After proving user identity, user need somehow sort of permission of what kind of resource <strong>have access to</strong>, that part will be taken by Authorization Server(Oauth2).</li>
+<li>OpenId Connect (OIDC): A simple identity layer on top of the OAuth2 protocol, which allows clients to verify the identity of the end-user based on the authentication performed by an authorization server, as well as to obtain basic profile information about the end-user.</li>
+<li>Token(Opaque vs JWT): opaque are stored in database and when decoding they don&rsquo;t contains any information, JWT in the otherside in it&rsquo;s form is an user information encrypted with secret key, we use JWT for access tokens and opaque for refresh ones.</li>
+<li>JWK:A JSON data structure that represents a cryptographic key, used in cryptographic operations such as encryption and digital signatures. those keys used for validating JWT tokens</li>
+<li>Authorization server: This component will handle bothi OpenID and Oauth2 protocols</li>
+<li>Identity management: this entity will handle authentication and identifying user identity</li>
+<li>Policy Enforcement: This tool will work as proxy in front the app we trying to authenticate/authorize to, It intecept request, validate with authorizattion and then decide if user is allowed or denied.</li>
+<li>grant_types: there are 2 different methods authorization_code and client_credentials</li>
+<li>First-party app: An application that is developed by the same organization that owns the API or resource server. It is trusted by the resource owner.</li>
+<li>Third-party An application developed by an external organization that seeks permission to access resources or APIs owned by a different organization.</li>
+</ul>
+<h2 id="current-stack">Current Stack</h2>
+<p>I have a K8s cluster composed of three nodes (1 master, 2 control plane) with Talos as the running OS, MetalLB deployed as a load balancer combined with Nginx (nginx.io) as an ingress controller.</p>
+<p>Ingress hosts that we will see are mapped to my Cloudflare domain(enkinineveh.space) secured with TLS certs generated using cert-manager and letsencrypt. One side note is that am using <a href="https://github.com/emberstack/kubernetes-reflector">reflector</a> to share TLS secret into other namespaces.</p>
+<p>Helm is my favorite tool for deploying resources, Helmfile in case of deploying multiple charts, and k9s for navigating resources.</p>
+<p>Gitea is my baby GitHub and CNPG is the default database.</p>
+<h2 id="mini-project">Mini Project</h2>
+<p>To better understand the usability of the Ory products, we will be deploying a mini project composed of:</p>
+<ul>
+<li>A <strong>private location service</strong> that returns user location.</li>
+<li>Publicly accessible <strong>backend to serve the frontend</strong> and connect to private services for fetching data.</li>
+<li>Simple frontend for displaying information.</li>
+</ul>
+<p>Some considerations on Authentication concerns:</p>
+<ul>
+<li>User registration form must be composed of: Full Name, Email, Phone Number, Password.</li>
+<li>Email is unique.</li>
+<li><strong>Social login using Google or GitHub</strong> will be a plus. One thing to note here is that we want to redirect users to the registration form in case one of the above fields is not present on the social platform.</li>
+</ul>
+<p>Some considerations on Authorization concerns:</p>
+<ul>
+<li>Requests to the location service need <strong>&rsquo;location:read&rsquo;</strong> scope to get authorized.</li>
+<li>We need two different clients: one for <strong>internal communication M2M</strong>, the other for communication <strong>between backend and frontend</strong> involving the user but without consent as the frontend is a <strong>first-party app</strong>.</li>
+<li>One beneficial step will be <strong>passing the authorized user_id as a custom header</strong>. We may provide <strong>third parties the ability to create OAuth2 apps</strong>. For the moment, we create one for them, but we want the same seamless experience as other platforms, including consent, scopes, and allowing those apps to <strong>access the location service directly as it may become public</strong> in the future.</li>
+</ul>
+<p><img loading="lazy" src="/img/diagram.png" alt="project diagram"  />
+</p>
+<h2 id="kratos--custom-ui">Kratos + Custom UI</h2>
+<h3 id="introduction-1">Introduction</h3>
+<p>At first, when a user tries to access a protected resource, they need to have an account or sign up for a new one and then get a token to send to the protected resource for authorizing their request.</p>
+<p>During the phase of login/registration, an identity management system must exist to handle all that, so say welcome to Kratos.</p>
+<p>Kratos is an identity management service that will handle all sorts of authentication methods, including login, registration, email verification, password reset, social login, etc.</p>
+<p>But Kratos doesn&rsquo;t come with a UI. Instead, it offers integration with existing UIs. You can create your pages with whatever language you like and then just reference the URLs in the Kratos config/selfservice/flows.</p>
+<p>I&rsquo;m by no means a frontend developer, so I will use this <a href="https://github.com/ory/kratos-selfservice-ui-node">open source</a> UI project developed by Ory. It has the majority of the functionalities that I need and we will add a couple of changes later.</p>
+<h3 id="deploying">Deploying</h3>
+<p>kratos has 2 components:</p>
+<ul>
+<li>Public for serving UI.</li>
+<li>Admin for managing identities (users) and modifying Kratos configuration (this component should be kept private for internal resources).</li>
+</ul>
+<p>To facilitate deployment, we will leverage a Helm chart. A quick Helm install will configure and deploy our resources. Ory has a quite good Helm <a href="https://github.com/ory/k8s/tree/master/helm/charts/kratos">chart</a>. We will download the chart and make a couple of modifications.</p>
+<p>First, we will expose the public API, and the obvious approach is using Ingress, so we will change the following code under ingress:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">ingress</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">public</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;nginx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">kratos.enkinineveh.space</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">paths</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l">Prefix</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">service</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kratos-public</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">port</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="m">80</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">tls</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l">enkinineveh.space-tls-prod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="l">kratos.enkinineveh.space</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Second, kratos needs a database to store identities so we will update &ldquo;config&rdquo;:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">dsn</span><span class="p">:</span><span class="w"> </span><span class="l">postgresql://kratos:kratos@cluster-pg-rw.cnpg-system.svc.cluster.local:5432/kratos</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I created the user and db manually, take note the host is mapped to a local instance(my pg).</p>
+<p>all things configured, now let&rsquo;s deploy the chart with modified values</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  kubectl create namespace auth
+</span></span><span class="line"><span class="cl">  helm upgrade --install kratos -n auth -f kratos/kratos-values.yaml ory/kratos
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>To experience full potential of kratos, we need to integrate the UI part.
+We clone the project, build it and push to a registry. either you deploy it to remote a registry like docker hub or a local one, am using gitea so that will more secure and easy for me.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  docker buildx build  -t gitea.enkinineveh.space/gitea_admin/kratos-ui:v1 .
+</span></span><span class="line"><span class="cl">  docker push gitea.enkinineveh.space/gitea_admin/kratos-ui:v1
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now the docker image is ready, let&rsquo;s initialize a local helm chart for the UI.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-BASH" data-lang="BASH"><span class="line"><span class="cl">  helm create charts
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>move into the values.yaml file and change the repository to the desired image in my case is gitea.enkinineveh.space/gitea_admin/kratos-ui, also don&rsquo;t the forget the tag: v1</p>
+<p>you may notice we didn&rsquo;t add a domain or an ingress to access the UI, because for the UI to work it needs to be deployed under the same domain as kratos public, so our approach will be updating the previous chart of kratos and add another path for the kratos-ui.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">ingress</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">public</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;nginx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">nginx.org/rewrites</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;serviceName=kratos-public rewrite=/&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">kratos.enkinineveh.space</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">paths</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l">Prefix</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">service</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kratos-ui-service</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">port</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="m">80</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l">Prefix</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">service</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kratos-public</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">port</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="m">80</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">tls</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l">enkinineveh.space-tls-prod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="l">kratos.enkinineveh.space</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>You can see I created another path &ldquo;/app&rdquo; for kratos-public, and leave the default &ldquo;/&rdquo; for kratos-ui.</p>
+<p>One thing to notice is the annotation, I rewrite requests going to /app to / on kratos-public which means if I request /app/login on <strong>kratos.enkinineveh.space</strong> it will be forwared as /login in kratos-public.</p>
+<p>Another thing to do is kratos need to reference the deployed UI, the known approach is updating kratos/config/flows by adding the different paths, in our case it will be like this:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">flows</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">error</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">ui_url</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/error</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">login</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">ui_url</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/login</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">verification</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">ui_url</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/verification</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">registration</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">ui_url</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/registration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">settings</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">ui_url</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/settings</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Cool, everything is configured let&rsquo;s install the chart but this time using helmfile as we have 2 charts to maintain</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">helmDefaults</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">createNamespace</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">releases</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kratos-ui</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">./kratos-ui/charts</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">auth</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kratos</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">ory/kratos</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">auth</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">values</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">kratos/kratos-values.yaml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">needs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">kratos-ui</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>To apply the changes and test the UI run <code>helmfile apply</code></p>
+<h3 id="identity">Identity</h3>
+<p>After the UI get deployed we will try create an identity, we can use the private api for admin service, but for this case we will leverage the UI part.</p>
+<p>Heads up into kratos.enkinineveh.space and click on the signup button, registration form will appear contains email and password and if notice the url appended flow query params(was added by kratos itself).</p>
+<p>We will extend the form and add 2 other fields(full_name, phone_number) by updating the identity.schemas param, here is the updated version:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl">  <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nt">&#34;$id&#34;</span><span class="p">:</span> <span class="s2">&#34;https://schemas.ory.sh/presets/kratos/identity.email.schema.json&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nt">&#34;$schema&#34;</span><span class="p">:</span> <span class="s2">&#34;http://json-schema.org/draft-07/schema#&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nt">&#34;title&#34;</span><span class="p">:</span> <span class="s2">&#34;User&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;object&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nt">&#34;properties&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">&#34;traits&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;object&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="nt">&#34;properties&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">          <span class="nt">&#34;email&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;string&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;format&#34;</span><span class="p">:</span> <span class="s2">&#34;email&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;title&#34;</span><span class="p">:</span> <span class="s2">&#34;E-Mail&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;ory.sh/kratos&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">              <span class="nt">&#34;credentials&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nt">&#34;password&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                  <span class="nt">&#34;identifier&#34;</span><span class="p">:</span> <span class="kc">true</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">              <span class="p">},</span>
+</span></span><span class="line"><span class="cl">              <span class="nt">&#34;recovery&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nt">&#34;via&#34;</span><span class="p">:</span> <span class="s2">&#34;email&#34;</span>
+</span></span><span class="line"><span class="cl">              <span class="p">},</span>
+</span></span><span class="line"><span class="cl">              <span class="nt">&#34;verification&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nt">&#34;via&#34;</span><span class="p">:</span> <span class="s2">&#34;email&#34;</span>
+</span></span><span class="line"><span class="cl">              <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">          <span class="p">},</span>
+</span></span><span class="line"><span class="cl">          <span class="nt">&#34;full_name&#34;</span><span class="p">:{</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;type&#34;</span><span class="p">:</span><span class="s2">&#34;string&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;title&#34;</span><span class="p">:</span><span class="s2">&#34;Full Name&#34;</span>
+</span></span><span class="line"><span class="cl">          <span class="p">},</span>
+</span></span><span class="line"><span class="cl">          <span class="nt">&#34;phone_number&#34;</span><span class="p">:{</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;type&#34;</span><span class="p">:</span><span class="s2">&#34;string&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;title&#34;</span><span class="p">:</span><span class="s2">&#34;Phone Number&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nt">&#34;format&#34;</span><span class="p">:</span> <span class="s2">&#34;tel&#34;</span>
+</span></span><span class="line"><span class="cl">          <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">},</span>
+</span></span><span class="line"><span class="cl">        <span class="nt">&#34;required&#34;</span><span class="p">:</span> <span class="p">[</span>
+</span></span><span class="line"><span class="cl">          <span class="s2">&#34;email&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="s2">&#34;full_name&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="s2">&#34;phone_number&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">],</span>
+</span></span><span class="line"><span class="cl">        <span class="nt">&#34;additionalProperties&#34;</span><span class="p">:</span> <span class="kc">false</span>
+</span></span><span class="line"><span class="cl">      <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">identity</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">default_schema_id</span><span class="p">:</span><span class="w"> </span><span class="l">default</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">schemas</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">default</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l">base64://above_file_in_base64</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We run <code>helmfile apply</code> to update kratos release, and then if we visit again the registration page we will notice the form get updated.</p>
+<h3 id="add-oidcgithub">Add OIDC(Github)</h3>
+<p>Sometimes you get lazy and don&rsquo;t want to type your email and use another random forgettable password, instead you choose to login with an your social accounts.</p>
+<p>As an example let&rsquo;s add github signin feature, we will need a github oauth app with read:user and user:email scopes but creating this is outside of this tutorial scope, you can follow github documentation and return back with github oauth2 app credentials.</p>
+<p>After you get the app, you added it under selfservice/methods/oidc/config/provider[0], here is an example:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">selfservice</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">methods</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">oidc</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">providers</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span>- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">github</span><span class="w"> </span><span class="c"># this is `&lt;provider-id&gt;` in the Authorization callback URL. DO NOT CHANGE IT ONCE SET!</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l">github</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">client_id</span><span class="p">:</span><span class="w"> </span><span class="l">client_id</span><span class="w"> </span><span class="c"># Replace this with the Client ID</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">client_secret</span><span class="p">:</span><span class="w"> </span><span class="l">client_secret</span><span class="w"> </span><span class="c"># Replace this with the Client secret</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">issuer_url</span><span class="p">:</span><span class="w"> </span><span class="l">https://api.github.com </span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">mapper_url</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;base64://bG9jYWwgY2xhaW1zID0gc3RkLmV4dFZhcignY2xhaW1zJyk7Cgp7CiAgaWRlbnRpdHk6IHsKICAgIHRyYWl0czogewogICAgICBlbWFpbDogY2xhaW1zLmVtYWlsLAogICAgICB1c2VybmFtZTogY2xhaW1zLm5hbWUsCiAgICAgIHBob25lX251bWJlcjoxMjMKICAgIH0sCiAgfSwKfQ==&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">scope</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span>- <span class="l">read:user</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span>- <span class="l">user:email</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">requested_claims</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">id_token</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="nt">email</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="nt">essential</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="nt">full_name</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="nt">essential</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="nt">phone_number</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="nt">essential</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>the mapper_url is a jsonet file encoded base64, it extract the user information return by oidc and pass to kratos for creating identity</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">  local claims = std.extVar(&#39;claims&#39;);
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  {
+</span></span><span class="line"><span class="cl">    identity: {
+</span></span><span class="line"><span class="cl">      traits: {
+</span></span><span class="line"><span class="cl">        email: claims.email,
+</span></span><span class="line"><span class="cl">        full_name: claims.name
+</span></span><span class="line"><span class="cl">      },
+</span></span><span class="line"><span class="cl">    },
+</span></span><span class="line"><span class="cl">  }
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>you may notice the phone_nubmer isn&rsquo;t passed from github, in that case kratos will return the user to registration to complete the missing field. and then we change kratos-ui to allow it to show the social-login button, here is the added code:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="cl"><span class="kr">export</span> <span class="kr">async</span> <span class="kd">function</span> <span class="nx">addIdentity</span><span class="p">(</span><span class="nx">identityId</span>: <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="k">await</span> <span class="nx">sdk</span><span class="p">.</span><span class="nx">identity</span>
+</span></span><span class="line"><span class="cl">    <span class="p">.</span><span class="nx">getIdentity</span><span class="p">({</span> <span class="nx">id</span>: <span class="kt">identityId</span><span class="p">,</span> <span class="nx">includeCredential</span><span class="o">:</span> <span class="p">[</span><span class="s2">&#34;oidc&#34;</span><span class="p">]</span> <span class="p">})</span>
+</span></span><span class="line"><span class="cl">    <span class="p">.</span><span class="nx">then</span><span class="p">(({</span> <span class="nx">data</span> <span class="p">})</span> <span class="o">=&gt;</span> <span class="nx">data</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kr">export</span> <span class="k">default</span> <span class="p">{</span> <span class="p">...</span><span class="nx">sdk</span><span class="p">,</span> <span class="nx">addIdentity</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>build the image and push it with a new tag: v2, then update the <strong>image value</strong> on kratos-ui chart and finally run <code>helmfile apply</code> to update the releases.</p>
+<p>Voila, you can see now Login/Register with Github.</p>
+<p><img loading="lazy" src="/img/kratos_login_github.png" alt="kratos_login_page_with_github_button"  />
+</p>
+<h2 id="hydra">Hydra</h2>
+<h3 id="introduction-2">Introduction</h3>
+<p>After identifying the user, he may need to access some of our protected resources, that&rsquo;s when he need to talk to an authorization server to give him token to access with it.</p>
+<p>Hydra will act as an authorization server here. It generates, validates, and revokes tokens. Hydra and Kratos integrate well.</p>
+<p>Like Kratos, Hydra contains 2 services: public and admin. Another interesting component is <a href="https://github.com/ory/hydra-maester">hydra Maester</a>. It is a Kubernetes controller that provides CRD for simplifying the creation of OAuth2 clients, but we will ignore it in this case as we will create clients manually with the Hydra CLI.</p>
+<h3 id="deploying-1">Deploying</h3>
+<p>We will copy the same methodalogy for deploying kratos,start by downloading hydra chart values and do a couple of modifications to enable ingress and integrate with kratos,..etc.</p>
+<p>for ingress we will enable just the public service with following code:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">ingress</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">public</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;nginx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">annotations</span><span class="p">:</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">hydra.enkinineveh.space</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">paths</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l">ImplementationSpecific</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">tls</span><span class="p">:</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l">enkinineveh.space-tls-prod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="l">hydra.enkinineveh.space</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>also hydra will need a database for storing it&rsquo;s own state, under hydra.config we will add dsn parameter and allow the the migration to create database and the related tables:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">hydra</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">dsn</span><span class="p">:</span><span class="w"> </span><span class="l">postgres://hydra:hydra@cluster-pg-rw.cnpg-system:5432/hydra</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">automigration</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Going forward to kratos integration part, there a property under config called &lsquo;urls&rsquo; where we will provide a set of links referencing the login, registration, logout, consent(for showing user scopes that he will accept on) and identity_provider is the url</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">urls</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">self</span><span class="p">:</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">issuer</span><span class="p">:</span><span class="w"> </span><span class="l">https://hydra.enkinineveh.space/</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">login</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/login</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">registration</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/registration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">consent</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/consent</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">logout</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/logout</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">identity_provider</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l">https://kratos.enkinineveh.space/app</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote>
+<p><strong>self.issuer</strong> is important here as the created token will contains an iss field in claims</p>
+</blockquote>
+<p>by default hydra will use opaque tokens, we will change that to JWT self defined tokens with following code:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">strategies</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">access_token</span><span class="p">:</span><span class="w"> </span><span class="l">jwt</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">jwt</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">scope_claim</span><span class="p">:</span><span class="w"> </span><span class="l">list</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>finally, we need create a secret key for encrypting user credentials, tokens,etc&hellip;</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">secrets</span><span class="p">:</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">system</span><span class="p">:</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">YU03TmVqdzdjNUc4WVhtVTVtQ0RJb1FodXdhc1JsVW8=</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now we&rsquo;are ready to deploy, we will update helmfile and run <code>helmfile apply</code>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">hydra</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">ory/hydra</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">auth</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">values</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">hydra/hydra-values.yaml</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Quick look at k9s, you will notice 3 pods two are active and the last one is terminated as it was initiazed by k8s job to run migration for db.
+<img loading="lazy" src="/img/k9s_hydra.png" alt="k9s pods"  />
+</p>
+<h3 id="creating-oauth2-clients">Creating Oauth2 Clients</h3>
+<p>Returning back to the project requirements, for the first use case, it enforces us into creating two different OAuth2 clients with a clean separation of concerns. That means, one for internal communication and the other one between the frontend and backend. In fact, each client must have minimal scopes and a targeted audience. For the second use case, we must create another client to handle connecting directly to the location service.</p>
+<p>Creating clients with Hydra is a straightforward action. We can use the admin service or the Hydra CLI if you have it installed. I wanted to change the method a bit, so I went for installing the CLI and had some tinkering with it.</p>
+<blockquote>
+<p>because hydra-admin cannot be accessed outside of cluster, I will port-forward to localhost:4445</p>
+</blockquote>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  kpf -n auth services/hydra-admin 4445:4445 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client --name frontend-backend-client --audience backend-service<span class="se">\ </span>--endpoint http://localhost:4445 --grant-type authorization_code,refresh_token <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid --skip-consent <span class="nb">true</span> --skip-logout-consent <span class="nb">true</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --token-endpoint-auth-method client_secret_post
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client  --name internal-communication --audience internal-service --endpoint http://localhost:4445 --grant-type client_credentials <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --token-endpoint-auth-method client_secret_basic --scope offline_access,openid,location:read
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client --name third-party --audience backend-service<span class="se">\ </span>--endpoint http://localhost:4445 --grant-type authorization_code,refresh_token <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid,location:read<span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --token-endpoint-auth-method client_secret_post
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>The first client will settle between the frontend and backend. After the user registers, they don&rsquo;t need to approve a certain consent because they are dealing with their own data through our trusted app. Then an authorization code will be sent to the redirect URL in the frontend and it will be sent back to the backend for access and refresh token exchange.</p>
+<p>The second client will handle the authorization internally, meaning machine-to-machine communication. It contains the location
+scope to call the Location service.</p>
+<p>The latter will be provided to third parties to get authorized for accessing user data.</p>
+<p>Here is a demo of the current setup.</p>
+<h2 id="oathkeeper">Oathkeeper</h2>
+<h3 id="introduction-3">Introduction</h3>
+<p>Token doesn&rsquo;t have a value if there is no validation entity, so from the project requirements, we need to enforce access to the location service to only JWTs with the &rsquo;location&rsquo;scope. That being said, there are two goals we need to achieve:</p>
+<ul>
+<li>Validate tokens when the service called internaly.</li>
+<li>Validate tokens When location service become public and a third party needs an access to.</li>
+</ul>
+<p>Oathkeeper is a PEP (Policy Enforcement Point) composed of two services: proxy and API.</p>
+<p>The proxy service can sit in front of the protected resource, intercepting requests and then deciding based on given rules if the request should be allowed or denied. In this project, we set the redirect ingress request to the Oathkeeper proxy and then Oathkeeper decides based on the rules if it should allow or deny.</p>
+<h3 id="deploying-2">Deploying</h3>
+<p>Let&rsquo;s use the same strategy we did with the previous services (Hydra, Kratos). Start by downloading the values.yaml file and make a couple of modifications to adjust for our needs.</p>
+<p>We will keep services private and instead pass to Nginx a private domain: oathkeeper-proxy.</p>
+<p>Oathkeeper has different handlers for authentication, authorization, mutation, and errors. To enable a specific handler, you need to define it under oathkeeper.config.</p>
+<p>Our case requires adding authentication using JWT, authorization, logging errors as JSON, and regex for parsing rules.
+So here is the added code:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">access_rules</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">matching_strategy</span><span class="p">:</span><span class="w"> </span><span class="l">regexp</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">repositories</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">file:///etc/rules/access-rules.json</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">authenticators</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">jwt</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">jwks_urls</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="l">https://hydra.enkinineveh.space/.well-known/jwks.json</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">scope_strategy</span><span class="p">:</span><span class="w"> </span><span class="l">hierarchic</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">jwks_max_wait</span><span class="p">:</span><span class="w"> </span><span class="l">5s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">authorizers</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">allow</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">errors</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">handlers</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">json</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">config</span><span class="p">:</span><span class="w"> </span>{}<span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>finally update helmfile:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">oathkeeper</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">ory/oathkeeper</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">auth</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">values</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">oathkeeper/oathkeeper-values.yaml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">needs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">kratos</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="rules">Rules</h3>
+<p>For beginning, we will write our first rule to restrict access to the backend from the frontend side, updating oathkeeper.accessRules:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">oathkeeper</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">accessRules</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">[</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;id&#34;: </span><span class="s2">&#34;backend-rule&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;upstream&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">&#34;url&#34;: </span><span class="s2">&#34;http://backend-app-charts.auth&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>}<span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;match&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">&#34;url&#34;: </span><span class="s2">&#34;http://backend-test.enkinineveh.space/&lt;.*&gt;&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">&#34;methods&#34;: </span><span class="p">[</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="s2">&#34;GET&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="s2">&#34;POST&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="s2">&#34;OPTIONS&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="s2">&#34;PUT&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="s2">&#34;PATCH&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>}<span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;authenticators&#34;: </span><span class="p">[</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">&#34;handler&#34;: </span><span class="s2">&#34;jwt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">],</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;authorizer&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">&#34;handler&#34;: </span><span class="s2">&#34;allow&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>}<span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="s2">&#34;errors&#34;</span><span class="p">:[</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="s2">&#34;handler&#34;</span><span class="p">:</span><span class="s2">&#34;json&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">]</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>and then update backend ingress to reference the oathkeeper API , here is how:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">ingress</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;nginx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">backend-test.enkinineveh.space</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">paths</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l">Prefix</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">service</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">oathkeeper-proxy</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">port</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="m">4455</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here we told nginx to forward request to oathkeeper proxy. Now let&rsquo;s test the whole authentication, here is a quick demo</p>
+<video width="640" height="360" controls>
+  <source src="/videos/authorization_oathkeeper.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+<h3 id="mutation">Mutation</h3>
+<p>One handler I didn&rsquo;t mention before is mutation, the project requires we pass user_id as a header to the targeted service(backend,location) that&rsquo;s where mutation handler gonna work. Let&rsquo;s update the oathkeeper config</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="c"># Global configuration file oathkeeper.yml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">mutators</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">header</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c"># Set enabled to true if the authenticator should be enabled and false to disable the authenticator. Defaults to false.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>then we change the rules on <strong>oathkeeper.accessRules</strong> and <strong>oathkeeper.config</strong> to add mutation</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-JSON" data-lang="JSON"><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;mutators&#34;</span><span class="p">:</span> <span class="p">[</span>
+</span></span><span class="line"><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">&#34;handler&#34;</span><span class="p">:</span> <span class="s2">&#34;header&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">&#34;config&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nt">&#34;headers&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">          <span class="nt">&#34;USER_ID&#34;</span><span class="p">:</span> <span class="s2">&#34;{{ print .Subject }}&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">      <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">]</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">oathkeeper</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">mutators</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">header</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">headers</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">USER_ID</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;{{ print .Subject }}&#34;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>We can get token and request <strong>backend-test.enkinineveh.space/headers</strong> we will see <strong>USER_ID</strong> was passed</p>
+<h2 id="istio-authorization">Istio Authorization</h2>
+<p>One last requirement the project needs is for the backend to get an access_token with the &ldquo;location&rdquo; scope and then request the location service.</p>
+<p>To force JWT authentication in the internal services, we need a service mesh. The location deployment needs to be placed inside a service mesh and tracked by a sidecar. We&rsquo;re going to choose Istio as a service mesh. The steps to integrate this feature are:</p>
+<p>1- Add Oathkeeper Rule to handle location service access</p>
+<p>2- Install the sidecar by labeling the deployment.</p>
+<p>3- Use Istio meshconfig to configure an external authorizer.</p>
+<p>4- Create an authorization policy to use the declared external authorizer and restrict deployment.</p>
+<p>here is the access rule to force JWT with &ldquo;location:read&rdquo; scope to access location service</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">&#34;id&#34;: </span><span class="s2">&#34;location-rule&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">&#34;match&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#34;url&#34;: </span><span class="s2">&#34;http://location-app-charts.auth/&lt;.*&gt;&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#34;methods&#34;: </span><span class="p">[</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;GET&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;POST&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;OPTIONS&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;PUT&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;PATCH&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;HEAD&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>}<span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">&#34;authenticators&#34;: </span><span class="p">[</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">&#34;handler&#34;: </span><span class="s2">&#34;jwt&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">&#34;config&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;scope_strategy&#34;: </span><span class="s2">&#34;hierarchic&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;required_scope&#34;: </span><span class="p">[</span><span class="s2">&#34;location:read&#34;</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">],</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">&#34;authorizer&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#34;handler&#34;: </span><span class="s2">&#34;allow&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>}<span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">&#34;mutators&#34;: </span><span class="p">[</span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#34;handler&#34;: </span><span class="s2">&#34;header&#34;</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#34;config&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">&#34;headers&#34;: </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">&#34;USER_ID&#34;: </span><span class="s2">&#34;{{ print .Subject }}&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>}<span class="p">],</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="s2">&#34;errors&#34;</span><span class="p">:[</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>{<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;handler&#34;</span><span class="p">:</span><span class="s2">&#34;json&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>}<span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>}<span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I will not show you how to install Istio because this is outside the article&rsquo;s scope, but you can follow their documentation; it is easy and comprehensive.</p>
+<p>After you install Istio, to add the Istio sidecar alongside the &rsquo;location deployment&rsquo;, we edit the podLabels on the location chart:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">podLabels</span><span class="p">:</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">sidecar.istio.io/inject</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Next, let&rsquo;s declare the Istio external authorizer, which will call the /decisions endpoint on the Oathkeeper API to decide if requests are allowed or denied. For example, suppose the backend wants to call the Location service with the URL: <a href="http://location.auth/user_location">http://location.auth/user_location</a>. Then the Istio sidecar will intercept this request and forward it to the Oathkeeper API with the path &ldquo;/decisions/user_location&rdquo; and the host header &ldquo;location.auth&rdquo;. So let&rsquo;s edit the Istio ConfigMap and add the Oathkeeper external provider:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">extensionProviders</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;ext-authz&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">envoyExtAuthzhHttp</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;oathkeepr-api.auth.svc.cluster.local&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="m">4456</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l">10s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">failOpen</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">statusOnError</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;500&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">pathPrefix</span><span class="p">:</span><span class="w"> </span><span class="l">/decisions</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">includeRequestHeadersInCheck</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&#34;authoirzation&#34;</span><span class="p">]</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Finally, create an AuthorizationPolicy to use the declared external authorizer and restrict deployment:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">security.istio.io/v1beta1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">AuthorizationPolicy</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">location-oathkeeper</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">auth</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">selector</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">app.kubernetes.io/instance</span><span class="p">:</span><span class="w"> </span><span class="l">location-app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">CUSTOM</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">ext-authz</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">rules</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- {}<span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>With these steps, the Istio sidecar will intercept requests to the location service and validate them using Oathkeeper, ensuring that only requests with valid JWT tokens and the correct scopes are allowed.</p>
+<video width="640" height="360" controls>
+  <source src="/videos/authorization_location_oathkeeper.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+<h2 id="third-party-client">Third Party Client</h2>
+<p>If we need to put location service public and let third parties access it, the steps to achieve this are:</p>
+<ul>
+<li>delete Authorization Policy</li>
+<li>enable ingress on service</li>
+<li>change access rule match.url to ingress host</li>
+</ul>
+<p>and that&rsquo;s all, you can create a client and handle it to a third party to access your service directly</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>I appreciate your time for reading this.</p>
+<h2 id="references">References</h2>
+<p><a href="https://github.com/hamzabouissi/k8s_authorization_with_ory">github_project</a></p>
+]]></content:encoded>
     </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
@@ -27,6 +1193,634 @@ One day I came across an architecture of AWS that includes AWS Cognito and ECS, 
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
       <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
       <description>Introduction Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</description>
+      <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
+<p>Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</p>
+<h2 id="prerequisite">Prerequisite</h2>
+<pre><code>* kubernetes cluster
+* external server(S3,NFS) for dynamic provisioning
+* metallb installed
+</code></pre>
+<h2 id="create-pvc-for-nfs-server">Create PVC for NFS Server</h2>
+<p>With the help of Proxmox, I created a VM and configured it as an NFS server on 192.168.1.109. To use this server in our Kubernetes cluster, we need to create a StorageClass and then create a PVC that points to that class so pods can use it.</p>
+<p><img loading="lazy" src="/img/pvc.png" alt="pvc"  />
+</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --create-namespace <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --namespace nfs-provisioner <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --set nfs.server<span class="o">=</span>192.168.1.109 <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --set nfs.path<span class="o">=</span>/srv/public/nfs
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Then we create a PVC, linking it to the storageClassName:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PersistentVolumeClaim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-test</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">storage.k8s.io/name</span><span class="p">:</span><span class="w"> </span><span class="l">nfs</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">storage.k8s.io/part-of</span><span class="p">:</span><span class="w"> </span><span class="l">kubernetes-complete-reference</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">accessModes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">ReadWriteMany</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">storageClassName</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-client</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">resources</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">requests</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">storage</span><span class="p">:</span><span class="w"> </span><span class="l">15Gi</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>If we want the deployment to store its volume in NFS, we define volumes with the argument persistentVolumeClaim = nfs-test. Here is an example:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">task-pv-pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">task-pv-storage</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">persistentVolumeClaim</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">claimName</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-test</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="l">...</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h2 id="deploy-gitea--postgresql--redis">Deploy Gitea + PostgreSQL + Redis</h2>
+<p>To facilitate deploying resources into Kubernetes, we use Helm. With one command and changing a few values, we can deploy our resources. Before deploying, when I was reading the Gitea chart, I noticed Gitea requires PostgreSQL and Redis to be deployed alongside it to save its configs and states.</p>
+<p>So let&rsquo;s create a file &lsquo;values-gitea.yaml&rsquo; and add the default chart values.</p>
+<p>Then change the following values:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">persistence</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">claimName</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-test</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">postgresql-ha</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">postgresql</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>I disabled the deployment of Postgres-HA because I didn&rsquo;t need it for my use case. However, if you&rsquo;re deploying for your organization where multiple users are pushing and pulling, you may keep it enabled.</p>
+<p>Now to deploy the Helm release with the modifications, run:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  helm install gitea gitea-charts/gitea --values values-gitea.yaml
+</span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote>
+<p><strong><em>NOTE:</em></strong> You need a cluster with an internet connection to pull the Docker images.</p>
+</blockquote>
+<blockquote>
+<p><strong><em>NOTE:</em></strong> If you don&rsquo;t specify the namespace, it will choose the &lsquo;default&rsquo; namespace.</p>
+</blockquote>
+<p>Now, we wait until the images get pulled and deployed. You can watch the pods by running:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  kubectl get pods -w
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><img loading="lazy" src="/img/k9s_screenshoot.png" alt="k9s pods"  />
+</p>
+<p>After all the pods are deployed, to access Gitea, we need to either open a port or create an ingress. Let&rsquo;s try the port-forwarding mechanism for now to test the app:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl port-forward service/gitea-http 3000:3000
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now go to <a href="http://localhost:3000">http://localhost:3000</a> and test, you can login as gitea_admin, password: r8sA8CPHD9!bt6d</p>
+<p>To access Gitea from another pod, CoreDNS provides a default resolving mechanism in the form: service_name.namespace.svc.cluster.local. In our example, the DNS for Gitea is: gitea-http.default.</p>
+<h2 id="deploy-controller-nginx">Deploy Controller Nginx</h2>
+<p>For testing purposes, port-forwarding may be a good solution, but if we want a more reliable solution and even attach a domain with HTTPS to the Gitea service, we need an ingress.</p>
+<p>To start with ingress, an ingress controller is needed. We will choose the most popular one: nginx-ingress.</p>
+<p>following this <a href="https://docs.nginx.com/nginx-ingress-controller/installation/installing-nic/installation-with-helm/">article</a>, choosing helm install, I got the below command to run:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  helm install my-release oci://ghcr.io/nginxinc/charts/nginx-ingress --version 1.2.1
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>If everything works as expected, you should see an ingress-controller service with an IP address from your load-balancer (MetalLB) pool of IP addresses.</p>
+<p><img loading="lazy" src="/img/nginx_controller.png" alt="nginx-ingress service"  />
+</p>
+<p>Great, to expose Gitea, we will change the previous chart file &lsquo;values-gitea.yaml&rsquo; values:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">gitea.homelab.local</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">paths</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l">Prefix</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>here we instructed to create an ingress rule:</p>
+<pre><code>- className is needed if you have multiple ingress controllers installed
+- the host part tell ingress to accept any request with domain or  host header : gitea.homelab.local and forward it to gitea instance  
+</code></pre>
+<p>To redeploy the release with the new configuration, we run:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">helm upgrade gitea gitea-charts/gitea --values values-gitea.yaml
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>If we check the ingresses, we can find Gitea ingress has been created. To test it, we will query the IP address of the ingress, supplying a custom host header: gitea.homelab.local.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">curl --header <span class="s1">&#39;Host: gitea.homelab.local&#39;</span> ingress_ip_address
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h2 id="deploy-bind9">Deploy bind9</h2>
+<p>You may notice that accessing Gitea from a browser isn&rsquo;t possible because the local DNS server doesn&rsquo;t have knowledge of the domain: homelab.local. The solution is either to modify the /etc/hosts file or create a CT in Proxmox and host a DNS server there.</p>
+<p>I went for the second option, hosting a DNS server because my homelab may require a variety of services in the future, and I want them to be mapped to a domain for all the connected devices in my network.</p>
+<p>For the DNS server, Pi-hole may be the most popular option for ad-blocking and adding DNS records, but I experienced a few bugs with serving DNS, so I went with the second option: Bind9.</p>
+<p>I read this <a href="https://www.digitalocean.com/community/tutorials/how-to-configure-bind-as-a-private-network-dns-server-on-ubuntu-20-04#step-2-configuring-the-primary-dns-server">article</a></p>
+<p>I created a CT in proxmox and assigned a static ip 192.168.1.114, don&rsquo;t use dhcp because it may change if CT restarted. So here are my configuration</p>
+<p><strong>my local ip address</strong>: 192.168.1.104, <strong>ingress ip address</strong>: 192.168.1.148</p>
+<p>filename: /etc/bind/named.conf.options</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">acl &#34;trusted&#34; {
+</span></span><span class="line"><span class="cl">  192.168.1.0/24;
+</span></span><span class="line"><span class="cl">};
+</span></span><span class="line"><span class="cl">options {
+</span></span><span class="line"><span class="cl">  directory &#34;/var/cache/bind&#34;;
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  // If there is a firewall between you and nameservers you want
+</span></span><span class="line"><span class="cl">  // to talk to, you may need to fix the firewall to allow multiple
+</span></span><span class="line"><span class="cl">  // ports to talk.  See http://www.kb.cert.org/vuls/id/800113
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  // If your ISP provided one or more IP addresses for stable
+</span></span><span class="line"><span class="cl">  // nameservers, you probably want to use them as forwarders.
+</span></span><span class="line"><span class="cl">  // Uncomment the following block, and insert the addresses replacing
+</span></span><span class="line"><span class="cl">  // the all-0&#39;s placeholder.
+</span></span><span class="line"><span class="cl">  recursion yes;
+</span></span><span class="line"><span class="cl">  allow-recursion { trusted; };
+</span></span><span class="line"><span class="cl">  listen-on { 192.168.1.114;};
+</span></span><span class="line"><span class="cl">  allow-transfer { none; };
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  // forwarders {
+</span></span><span class="line"><span class="cl">  //      0.0.0.0;
+</span></span><span class="line"><span class="cl">  // };
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  //========================================================================
+</span></span><span class="line"><span class="cl">  // If BIND logs error messages about the root key being expired,
+</span></span><span class="line"><span class="cl">  // you will need to update your keys.  See https://www.isc.org/bind-keys
+</span></span><span class="line"><span class="cl">  //========================================================================
+</span></span><span class="line"><span class="cl">  dnssec-validation auto;
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  listen-on-v6 { any; };
+</span></span><span class="line"><span class="cl">};
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>filename: /etc/bind/named.conf.local</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">zone &#34;homelab.local&#34; {
+</span></span><span class="line"><span class="cl">    type master;
+</span></span><span class="line"><span class="cl">    file &#34;/etc/bind/zones/db.homelab.local&#34;;
+</span></span><span class="line"><span class="cl">};
+</span></span><span class="line"><span class="cl">zone &#34;168.192.in-addr.arpa&#34; {
+</span></span><span class="line"><span class="cl">    type primary;
+</span></span><span class="line"><span class="cl">    file &#34;/etc/bind/zones/db.192.168&#34;;  # 192.168.0.0/24 subnet
+</span></span><span class="line"><span class="cl">};
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>filename: zones/db.homelab.local</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">;
+</span></span><span class="line"><span class="cl">; BIND data file for local loopback interface
+</span></span><span class="line"><span class="cl">;
+</span></span><span class="line"><span class="cl">$TTL    604800
+</span></span><span class="line"><span class="cl">@       IN      SOA     homelab.local. admin.homelab.local. (
+</span></span><span class="line"><span class="cl">                              3         ; Serial
+</span></span><span class="line"><span class="cl">                         604800         ; Refresh
+</span></span><span class="line"><span class="cl">                          86400         ; Retry
+</span></span><span class="line"><span class="cl">                        2419200         ; Expire
+</span></span><span class="line"><span class="cl">                         604800 )       ; Negative Cache TTL
+</span></span><span class="line"><span class="cl">;
+</span></span><span class="line"><span class="cl">; name servers - NS records
+</span></span><span class="line"><span class="cl">    IN      NS      ns1.homelab.local.
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">; name servers - A records
+</span></span><span class="line"><span class="cl">ns1.homelab.local.            IN      A       192.168.1.114
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">; name servers - A records
+</span></span><span class="line"><span class="cl">gitea.homelab.local.          IN      A       192.168.1.148
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>filename: /etc/bind/zones/db.168.192</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">;
+</span></span><span class="line"><span class="cl">; BIND reverse data file for local loopback interface
+</span></span><span class="line"><span class="cl">;
+</span></span><span class="line"><span class="cl">$TTL    604800
+</span></span><span class="line"><span class="cl">@       IN      SOA     ns1.homelab.local. admin.homelab.local. (
+</span></span><span class="line"><span class="cl">                              3         ; Serial
+</span></span><span class="line"><span class="cl">                         604800         ; Refresh
+</span></span><span class="line"><span class="cl">                          86400         ; Retry
+</span></span><span class="line"><span class="cl">                        2419200         ; Expire
+</span></span><span class="line"><span class="cl">                         604800 )       ; Negative Cache TTL
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">; name servers - NS records
+</span></span><span class="line"><span class="cl">      IN      NS      ns1.homelab.local.
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">; PTR Records
+</span></span><span class="line"><span class="cl">114.1   IN      PTR     ns1.homelab.local.    ; 192.168.1.114
+</span></span><span class="line"><span class="cl">148.1   IN      PTR     gitea.homelab.local.  ; 192.168.1.148
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>once the the bind9 configured and it&rsquo;s working, we need to add the dns server ip address as an additional one, am using NetworkManager:</p>
+<p><img loading="lazy" src="/img/network_manager_dns.png" alt="network_manager"  />
+</p>
+<h2 id="add-tls">Add TLS</h2>
+<p>Now, if we try to login into to the Gitea registry using the below command:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker login gitea.homelab.local
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>It will return an error claiming the registry domain needs a TLS certificate. We can work around that by adding the registry domain to /etc/docker/daemon.json, but it would be more useful if we create a TLS certificate and append it to the domain.</p>
+<p>We will start first by creating the cert. I chose mkcert because my first search led to it 😄.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">mkcert gitea.homelab.local
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>It will generate two PEM files: a public key and a private key.</p>
+<p>We will create a TLS secret and append the two created files from mkcert:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl create secret tls gitea-secret <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --key gitea.homelab.local-key.pem <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --cert gitea.homelab.local.pem
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Finally, we append the gitea-secret into the ingress by changing the gitea-values.yaml file:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">tls</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l">gitea-secret</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">       </span>- <span class="l">gitea.homelab.local</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now, we can visit gitea.homelab.local and login to gitea registry without issues.</p>
+<p><img loading="lazy" src="/img/docker_login.png" alt="docker-login"  />
+</p>
+<h2 id="change-nginx-config-for-pushing-the-image">Change nginx config for pushing the image</h2>
+<p>We deployed Gitea with one main purpose in mind: pushing containers to the registry. However, if we try building a local image and pushing it, you may face an error saying: &ldquo;413 Request Entity Too Large&rdquo;!</p>
+<p><img loading="lazy" src="/img/docker_push_413.png" alt="413_push_image"  />
+</p>
+<p>This is because by default Nginx imposes a limit of 1MB for uploading media files. To change that, we add an annotation for ingress to remove the limit:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">annotations</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.org/client-max-body-size</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;0&#34;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>then we update the release chart</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">helm upgrade gitea gitea-charts/gitea --values values-gitea.yaml
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now, we can push the image: gitlab.homelab.local/gitea_admin/app:latest</p>
+<p><img loading="lazy" src="/img/pushed_image.png" alt="pushed_image"  />
+</p>
+<p>if you have created another user instead of gitea_admin, you can replace it in the above command.</p>
+<h2 id="add-bind9-server-in-coredns">Add Bind9 Server in CoreDNS</h2>
+<p>We have done everything from deploying to adding TLS cert, but if we tried to create a deployment with the deployed image as an example</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">apps/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Deployment</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">app-deployment</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">gitea.homelab.local/gitea_admin/app:latest</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="m">80</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>after applying the yaml, if you run kubectl describe deployment/app_name
+you may notice in the events section that it&rsquo;s stating pulling the image has failed, that&rsquo;s logical because kubernetes cluster doesn&rsquo;t know about our custom domain: <strong>homelab.local</strong>.</p>
+<p>So to let kubernetes DNS server: CoreDNS, acknowledge our domain we gonna need a litle tweak into the CoreDNS config</p>
+<p>we run the following command to open the editor with configmap:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl edit configmap -n kube-system coredns
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>and then we add the reference to homelab.local</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ConfigMap</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">coredns</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">kube-system</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">data</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">Corefile</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="cl"><span class="sd">    .:53 {
+</span></span></span><span class="line"><span class="cl"><span class="sd">        errors
+</span></span></span><span class="line"><span class="cl"><span class="sd">        health
+</span></span></span><span class="line"><span class="cl"><span class="sd">        kubernetes cluster.local in-addr.arpa ip6.arpa {
+</span></span></span><span class="line"><span class="cl"><span class="sd">           pods insecure
+</span></span></span><span class="line"><span class="cl"><span class="sd">           fallthrough in-addr.arpa ip6.arpa
+</span></span></span><span class="line"><span class="cl"><span class="sd">        }
+</span></span></span><span class="line"><span class="cl"><span class="sd">        prometheus :9153
+</span></span></span><span class="line"><span class="cl"><span class="sd">        forward . 172.16.0.1
+</span></span></span><span class="line"><span class="cl"><span class="sd">        cache 30
+</span></span></span><span class="line"><span class="cl"><span class="sd">        loop
+</span></span></span><span class="line"><span class="cl"><span class="sd">        reload
+</span></span></span><span class="line"><span class="cl"><span class="sd">        loadbalance
+</span></span></span><span class="line"><span class="cl"><span class="sd">    }
+</span></span></span><span class="line"><span class="cl"><span class="sd">    homalb.local:53 {
+</span></span></span><span class="line"><span class="cl"><span class="sd">        errors
+</span></span></span><span class="line"><span class="cl"><span class="sd">        cache 30
+</span></span></span><span class="line"><span class="cl"><span class="sd">        forward . 192.168.1.114
+</span></span></span><span class="line"><span class="cl"><span class="sd">    }  </span><span class="w">    
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>and for the CoreDNS to take effect, we will restart it with :</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl rollout restart -n kube-system deployment/coredns
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now, to test things out you can redeploy the previous deployed yaml or just run an alpine with nslookup</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl run --image<span class="o">=</span>alpine:3.5 -it alpine-shell-1 -- nslookup gitea.homelab.local
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>it should return the ip address of the ingress.</p>
+]]></content:encoded>
     </item>
   </channel>
 </rss>

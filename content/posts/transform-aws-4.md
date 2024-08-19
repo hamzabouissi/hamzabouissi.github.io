@@ -4,6 +4,8 @@ date = 2024-08-12T14:40:10+01:00
 draft = false
 [cover]
     image = 'img/exam-thumb.png'
+tags = ['Kafka','DynamoDb','Knative','Kubernetes']
+
 +++
 
 

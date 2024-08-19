@@ -4,6 +4,8 @@ date = 2024-08-12T14:42:01+01:00
 draft = false
 [cover]
     image = 'img/exam-thumb.png'
+tags = ['Knative','Authorization','Authentication','Oathkeeper','Kratos','Kubernetes']
+
 +++
 
 
