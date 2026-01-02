@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Helm on chown u&#43;r mind</title>
-    <link>//localhost:1313/tags/helm/</link>
+    <link>hamzabouissi.github.io/tags/helm/</link>
     <description>Recent content in Helm on chown u&#43;r mind</description>
     <image>
       <title>chown u&#43;r mind</title>
-      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
-      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+      <url>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
     <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 01 Jul 2024 11:39:57 +0100</lastBuildDate>
-    <atom:link href="//localhost:1313/tags/helm/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="hamzabouissi.github.io/tags/helm/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Guardians of hell: hydra kratos oathkeeper</title>
-      <link>//localhost:1313/posts/guardians_of_hell/</link>
+      <link>hamzabouissi.github.io/posts/guardians_of_hell/</link>
       <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
-      <guid>//localhost:1313/posts/guardians_of_hell/</guid>
+      <guid>hamzabouissi.github.io/posts/guardians_of_hell/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.&lt;/p&gt;
 &lt;p&gt;One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.&lt;/p&gt;</description>
@@ -1186,9 +1186,9 @@ So here is the added code:</p>
     </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
-      <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
+      <link>hamzabouissi.github.io/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
-      <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
+      <guid>hamzabouissi.github.io/posts/deploy-gitea-k8s/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>

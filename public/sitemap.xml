@@ -2,170 +2,170 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>//localhost:1313/tags/ccm/</loc>
+    <loc>hamzabouissi.github.io/tags/ccm/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/</loc>
+    <loc>hamzabouissi.github.io/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/cloud-agnostic/</loc>
+    <loc>hamzabouissi.github.io/tags/cloud-agnostic/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/cloud-controller-manager/</loc>
+    <loc>hamzabouissi.github.io/tags/cloud-controller-manager/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/external-dns/</loc>
+    <loc>hamzabouissi.github.io/tags/external-dns/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/haproxy/</loc>
+    <loc>hamzabouissi.github.io/tags/haproxy/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/kubernetes/</loc>
+    <loc>hamzabouissi.github.io/tags/kubernetes/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/loadbalancer/</loc>
+    <loc>hamzabouissi.github.io/tags/loadbalancer/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/loxilb/</loc>
+    <loc>hamzabouissi.github.io/tags/loxilb/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/metacontroller/</loc>
+    <loc>hamzabouissi.github.io/tags/metacontroller/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/metlalb/</loc>
+    <loc>hamzabouissi.github.io/tags/metlalb/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/</loc>
+    <loc>hamzabouissi.github.io/posts/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/</loc>
+    <loc>hamzabouissi.github.io/tags/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</loc>
+    <loc>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/transform-aws-5/</loc>
+    <loc>hamzabouissi.github.io/posts/transform-aws-5/</loc>
     <lastmod>2024-08-12T14:42:01+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/transform-aws-4/</loc>
+    <loc>hamzabouissi.github.io/posts/transform-aws-4/</loc>
     <lastmod>2024-08-12T14:40:10+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/transform-aws-3/</loc>
+    <loc>hamzabouissi.github.io/posts/transform-aws-3/</loc>
     <lastmod>2024-08-12T14:40:08+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/transform-aws-2/</loc>
+    <loc>hamzabouissi.github.io/posts/transform-aws-2/</loc>
     <lastmod>2024-08-12T14:40:04+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/transform-aws-1/</loc>
+    <loc>hamzabouissi.github.io/posts/transform-aws-1/</loc>
     <lastmod>2024-08-12T14:32:49+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/docker/</loc>
+    <loc>hamzabouissi.github.io/tags/docker/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/guardians_of_hell/</loc>
+    <loc>hamzabouissi.github.io/posts/guardians_of_hell/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/helm/</loc>
+    <loc>hamzabouissi.github.io/tags/helm/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/helmfile/</loc>
+    <loc>hamzabouissi.github.io/tags/helmfile/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/hydra/</loc>
+    <loc>hamzabouissi.github.io/tags/hydra/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/istio/</loc>
+    <loc>hamzabouissi.github.io/tags/istio/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/kratos/</loc>
+    <loc>hamzabouissi.github.io/tags/kratos/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/oathkeeper/</loc>
+    <loc>hamzabouissi.github.io/tags/oathkeeper/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/talos/</loc>
+    <loc>hamzabouissi.github.io/tags/talos/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/boltdb/</loc>
+    <loc>hamzabouissi.github.io/tags/boltdb/</loc>
     <lastmod>2024-05-30T11:12:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/etcd/</loc>
+    <loc>hamzabouissi.github.io/tags/etcd/</loc>
     <lastmod>2024-05-30T11:12:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/go/</loc>
+    <loc>hamzabouissi.github.io/tags/go/</loc>
     <lastmod>2024-05-30T11:12:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/etcd_went_down/</loc>
+    <loc>hamzabouissi.github.io/posts/etcd_went_down/</loc>
     <lastmod>2024-05-30T11:12:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/bind9/</loc>
+    <loc>hamzabouissi.github.io/tags/bind9/</loc>
     <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/deploy-gitea-k8s/</loc>
+    <loc>hamzabouissi.github.io/posts/deploy-gitea-k8s/</loc>
     <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/dns/</loc>
+    <loc>hamzabouissi.github.io/tags/dns/</loc>
     <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/giea/</loc>
+    <loc>hamzabouissi.github.io/tags/giea/</loc>
     <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/proxmox/</loc>
+    <loc>hamzabouissi.github.io/tags/proxmox/</loc>
     <lastmod>2023-05-20T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/hide-your-secrets/</loc>
+    <loc>hamzabouissi.github.io/posts/hide-your-secrets/</loc>
     <lastmod>2023-05-19T16:14:49+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/aws-copilot/</loc>
+    <loc>hamzabouissi.github.io/tags/aws-copilot/</loc>
     <lastmod>2023-04-25T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/confession/</loc>
+    <loc>hamzabouissi.github.io/posts/confession/</loc>
     <lastmod>2023-04-25T16:12:38+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/dynamodb/</loc>
+    <loc>hamzabouissi.github.io/tags/dynamodb/</loc>
     <lastmod>2023-04-20T15:36:32+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/ecs/</loc>
+    <loc>hamzabouissi.github.io/tags/ecs/</loc>
     <lastmod>2023-04-20T15:36:32+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/stress-swallows-you/</loc>
+    <loc>hamzabouissi.github.io/posts/stress-swallows-you/</loc>
     <lastmod>2023-04-20T15:36:32+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/lambda/</loc>
+    <loc>hamzabouissi.github.io/tags/lambda/</loc>
     <lastmod>2023-04-20T15:36:32+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/rds/</loc>
+    <loc>hamzabouissi.github.io/tags/rds/</loc>
     <lastmod>2023-04-20T15:36:32+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/cloudformation/</loc>
+    <loc>hamzabouissi.github.io/tags/cloudformation/</loc>
     <lastmod>2023-04-16T16:05:46+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/determination/</loc>
+    <loc>hamzabouissi.github.io/posts/determination/</loc>
     <lastmod>2023-04-16T16:05:46+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/the-search/</loc>
+    <loc>hamzabouissi.github.io/posts/the-search/</loc>
     <lastmod>2023-04-12T15:28:36+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/the-beginning/</loc>
+    <loc>hamzabouissi.github.io/posts/the-beginning/</loc>
     <lastmod>2023-04-10T15:25:26+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/aws/</loc>
+    <loc>hamzabouissi.github.io/tags/aws/</loc>
     <lastmod>2023-01-10T11:39:04+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/ci/cd-pipeline/</loc>
+    <loc>hamzabouissi.github.io/tags/ci/cd-pipeline/</loc>
     <lastmod>2023-01-10T11:39:04+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/cloudfront/</loc>
+    <loc>hamzabouissi.github.io/tags/cloudfront/</loc>
     <lastmod>2023-01-10T11:39:04+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</loc>
+    <loc>hamzabouissi.github.io/posts/deployment-preview-with-aws-cloudfront/</loc>
     <lastmod>2023-01-10T11:39:04+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/frontend/</loc>
+    <loc>hamzabouissi.github.io/tags/frontend/</loc>
     <lastmod>2023-01-10T11:39:04+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/categories/</loc>
+    <loc>hamzabouissi.github.io/categories/</loc>
   </url><url>
-    <loc>//localhost:1313/search/</loc>
+    <loc>hamzabouissi.github.io/search/</loc>
   </url>
 </urlset>

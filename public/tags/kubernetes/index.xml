@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Kubernetes on chown u&#43;r mind</title>
-    <link>//localhost:1313/tags/kubernetes/</link>
+    <link>hamzabouissi.github.io/tags/kubernetes/</link>
     <description>Recent content in Kubernetes on chown u&#43;r mind</description>
     <image>
       <title>chown u&#43;r mind</title>
-      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
-      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+      <url>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
     <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Wed, 31 Dec 2025 00:00:00 +0100</lastBuildDate>
-    <atom:link href="//localhost:1313/tags/kubernetes/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="hamzabouissi.github.io/tags/kubernetes/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>The Tale of Kubernetes Loadbalancer &#34;Service&#34; In The Agnostic World of Clouds</title>
-      <link>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</link>
+      <link>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</link>
       <pubDate>Wed, 31 Dec 2025 00:00:00 +0100</pubDate>
-      <guid>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</guid>
+      <guid>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</guid>
       <description>&lt;h2 id=&#34;prologue&#34;&gt;&lt;strong&gt;Prologue&lt;/strong&gt;&lt;/h2&gt;
 &lt;p&gt;One of the key features for the “GlueOps Platform” to work is installing a LoadBalancer, and because we’re using GlueKube to create kubernetes cluster in a cloud agnostic way, getting the LoadBalancer to work isn’t that easy, as each cloud providers requires different setup, especially for providers with no CCM or in an on-prem installation.&lt;/p&gt;
 &lt;h2 id=&#34;the-birth-of-the-loadbalancer-in-the-kingdom-of-kubernetes&#34;&gt;&lt;strong&gt;The Birth of the LoadBalancer in the Kingdom of Kubernetes&lt;/strong&gt;&lt;/h2&gt;
@@ -106,7 +106,8 @@ And the Last factor that raised concerns was the project’s commit and support 
 <p>Second, because we’re installing Nginx ingress inside Kubernetes, we need to make sure every feature(like proxy protocol..) we’re using can be compatible with HAProxy.</p>
 <p>While we didn’t choose this method, it taught us a lot more about kubernetes Service resource and how external-dns and nginx-ingress work interchangeably, also a small thing to tell, during our research we found a small bug in the pomerium ingress controller when we used the nodeport service type, here is a link to our <a href="https://github.com/pomerium/ingress-controller/pull/1099">PR</a>:</p>
 <h2 id="the-false-prophet-why-metallb-couldnt-save-the-realm"><strong>The False Prophet: Why MetalLB Couldn’t Save the Realm</strong></h2>
-<p>If you write “installing kubernetes on-prem”, you will find a bunch of articles talking about <strong>MetalLB</strong> and how it’s the go-to solution to your LB problem on-prem. But our case was quite different, we’re not just installing the cluster on-prem, we wanna do it on every node that you have ssh on, no matter the provider. For <strong>MetalLB</strong> this isn&rsquo;t the case, because MetalLB needs a control over the L3/L2 network layer to advertise the used IPs, and that isn’t possible for providers like AWS/GCP/AZURE…</p>
+<p>If you write “installing kubernetes on-prem”, you will find a bunch of articles talking about <strong>MetalLB</strong> and how it’s the go-to solution to your LB problem on-prem. But our case was quite different, we’re not just installing the cluster on-prem, we wanna do it on every node that you have ssh on, no matter the provider.</p>
+<p>For <strong>MetalLB</strong> this isn&rsquo;t the case, because MetalLB needs a control over the L3/L2 network layer to advertise the used IPs, and that isn’t possible for providers like AWS/GCP/AZURE…</p>
 <h2 id="the-glimpse-of-truth-discovering-the-light"><strong>The Glimpse Of Truth: Discovering The Light</strong></h2>
 <p>We did another research and found a simpler approach , that goes like the following:</p>
 <p>Upon bootstrapping the cluster, we label/taint the nodes where we want nginx-ingress to be scheduled on with <strong>use-as-lb=true.</strong> Then we save those node public IP’s for the next steps.</p>
@@ -644,7 +645,7 @@ For instance if you deploy an EC2, have public IP(12.12.12.12) and you run <code
 <h2 id="summary">Summary</h2>
 <p>Faced with the challenge of creating a cloud-agnostic Kubernetes <code>LoadBalancer</code> Service without a native Cloud Controller Manager (CCM),We explored several solutions.</p>
 <p>Initial attempts, including <strong>LoxiLB</strong>, <strong>HAProxy + NodePort</strong> (manual external management), <strong>MetalLB</strong> (incompatible with major clouds lacking L2/L3 control), and <strong>ExternalIPs</strong> (limited ingress controller support), all failed to provide a robust, automated solution.</p>
-<p>The ultimate fix was a custom, <strong>Metacontroller-based CCM</strong> named <strong>Gluekube-CCM</strong>. This solution:</p>
+<p>The ultimate fix was a custom, <strong>Metacontroller-based CCM</strong> named <strong>Gluekube-CCM</strong>. that relies on the installed ingress controller:</p>
 <ol>
 <li><strong>Watches</strong> for specific <code>LoadBalancer</code> Services.</li>
 <li><strong>Identifies</strong> labeled, healthy worker nodes (retrieving their public and private IPs).</li>
@@ -660,9 +661,9 @@ Metacontroller: <a href="https://metacontroller.github.io/metacontroller/intro.h
     </item>
     <item>
       <title>Guardians of hell: hydra kratos oathkeeper</title>
-      <link>//localhost:1313/posts/guardians_of_hell/</link>
+      <link>hamzabouissi.github.io/posts/guardians_of_hell/</link>
       <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
-      <guid>//localhost:1313/posts/guardians_of_hell/</guid>
+      <guid>hamzabouissi.github.io/posts/guardians_of_hell/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.&lt;/p&gt;
 &lt;p&gt;One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.&lt;/p&gt;</description>
@@ -1831,9 +1832,9 @@ So here is the added code:</p>
     </item>
     <item>
       <title>Oops...Etcd went down</title>
-      <link>//localhost:1313/posts/etcd_went_down/</link>
+      <link>hamzabouissi.github.io/posts/etcd_went_down/</link>
       <pubDate>Thu, 30 May 2024 11:12:57 +0100</pubDate>
-      <guid>//localhost:1313/posts/etcd_went_down/</guid>
+      <guid>hamzabouissi.github.io/posts/etcd_went_down/</guid>
       <description>&lt;h2 id=&#34;introduction-with-1-mistake&#34;&gt;Introduction with 1-Mistake&lt;/h2&gt;
 &lt;p&gt;On that shiny day, I got a project that required deploying a mongodb cluster,
 After a few searches, I found percona Operator, moved into installation section and copied the helm install command.&lt;/p&gt;
@@ -2043,9 +2044,9 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
     </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
-      <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
+      <link>hamzabouissi.github.io/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
-      <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
+      <guid>hamzabouissi.github.io/posts/deploy-gitea-k8s/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>

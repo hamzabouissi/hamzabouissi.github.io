@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Lambda on chown u&#43;r mind</title>
-    <link>//localhost:1313/tags/lambda/</link>
+    <link>hamzabouissi.github.io/tags/lambda/</link>
     <description>Recent content in Lambda on chown u&#43;r mind</description>
     <image>
       <title>chown u&#43;r mind</title>
-      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
-      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+      <url>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
     <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 20 Apr 2023 15:36:32 +0100</lastBuildDate>
-    <atom:link href="//localhost:1313/tags/lambda/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="hamzabouissi.github.io/tags/lambda/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>GCP -&gt; AWS Migration: Stress Swallows You</title>
-      <link>//localhost:1313/posts/stress-swallows-you/</link>
+      <link>hamzabouissi.github.io/posts/stress-swallows-you/</link>
       <pubDate>Thu, 20 Apr 2023 15:36:32 +0100</pubDate>
-      <guid>//localhost:1313/posts/stress-swallows-you/</guid>
+      <guid>hamzabouissi.github.io/posts/stress-swallows-you/</guid>
       <description>&lt;blockquote&gt;
 &lt;p&gt;&lt;em&gt;3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.&lt;/em&gt;&lt;/p&gt;
 &lt;/blockquote&gt;

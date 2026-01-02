@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Posts on chown u&#43;r mind</title>
-    <link>//localhost:1313/posts/</link>
+    <link>hamzabouissi.github.io/posts/</link>
     <description>Recent content in Posts on chown u&#43;r mind</description>
     <image>
       <title>chown u&#43;r mind</title>
-      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
-      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+      <url>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
     <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Wed, 31 Dec 2025 00:00:00 +0100</lastBuildDate>
-    <atom:link href="//localhost:1313/posts/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="hamzabouissi.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>The Tale of Kubernetes Loadbalancer &#34;Service&#34; In The Agnostic World of Clouds</title>
-      <link>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</link>
+      <link>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</link>
       <pubDate>Wed, 31 Dec 2025 00:00:00 +0100</pubDate>
-      <guid>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</guid>
+      <guid>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</guid>
       <description>&lt;h2 id=&#34;prologue&#34;&gt;&lt;strong&gt;Prologue&lt;/strong&gt;&lt;/h2&gt;
 &lt;p&gt;One of the key features for the “GlueOps Platform” to work is installing a LoadBalancer, and because we’re using GlueKube to create kubernetes cluster in a cloud agnostic way, getting the LoadBalancer to work isn’t that easy, as each cloud providers requires different setup, especially for providers with no CCM or in an on-prem installation.&lt;/p&gt;
 &lt;h2 id=&#34;the-birth-of-the-loadbalancer-in-the-kingdom-of-kubernetes&#34;&gt;&lt;strong&gt;The Birth of the LoadBalancer in the Kingdom of Kubernetes&lt;/strong&gt;&lt;/h2&gt;
@@ -661,14 +661,14 @@ Metacontroller: <a href="https://metacontroller.github.io/metacontroller/intro.h
     </item>
     <item>
       <title>Transform AWS Exam Generator Architecture to Open Source Part #5: Authentication and Emailing</title>
-      <link>//localhost:1313/posts/transform-aws-5/</link>
+      <link>hamzabouissi.github.io/posts/transform-aws-5/</link>
       <pubDate>Mon, 12 Aug 2024 14:42:01 +0100</pubDate>
-      <guid>//localhost:1313/posts/transform-aws-5/</guid>
+      <guid>hamzabouissi.github.io/posts/transform-aws-5/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;In this article, we’re going to replace the Cognito Service, I choose the Kratos and Oathkeeper from Ory as alternative.&lt;/p&gt;
 &lt;p&gt;The main functionalities of Congito here, is offering a way to sign in, sign up with or without SSO, email verification and use Sesssion Web Token for Frontend authorization.&lt;/p&gt;
 &lt;p&gt;Here is the full architecture of authentication and authorization&lt;/p&gt;
-&lt;p&gt;&lt;img alt=&#34;ory_arch&#34; loading=&#34;lazy&#34; src=&#34;//localhost:1313/img/kratos-oathkeeper-arch.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;ory_arch&#34; loading=&#34;lazy&#34; src=&#34;hamzabouissi.github.io/img/kratos-oathkeeper-arch.png&#34;&gt;&lt;/p&gt;
 &lt;p&gt;Don&amp;rsquo;t worry if didnt understand the architecture, we will dig deeper in the next headlines&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>In this article, we’re going to replace the Cognito Service, I choose the Kratos and Oathkeeper from Ory as alternative.</p>
@@ -1653,9 +1653,9 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
     </item>
     <item>
       <title>Transform AWS Exam Generator Architecture to Open Source Part #4: Exam Passing</title>
-      <link>//localhost:1313/posts/transform-aws-4/</link>
+      <link>hamzabouissi.github.io/posts/transform-aws-4/</link>
       <pubDate>Mon, 12 Aug 2024 14:40:10 +0100</pubDate>
-      <guid>//localhost:1313/posts/transform-aws-4/</guid>
+      <guid>hamzabouissi.github.io/posts/transform-aws-4/</guid>
       <description>&lt;h2 id=&#34;brief-description&#34;&gt;Brief Description&lt;/h2&gt;
 &lt;p&gt;In this article, we create the passing part of the exam, the architecture is composed of:&lt;/p&gt;
 &lt;ul&gt;
@@ -2434,9 +2434,9 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
     </item>
     <item>
       <title>Transform AWS Exam Generator Architecture to Open Source Part #3: Exam Generation</title>
-      <link>//localhost:1313/posts/transform-aws-3/</link>
+      <link>hamzabouissi.github.io/posts/transform-aws-3/</link>
       <pubDate>Mon, 12 Aug 2024 14:40:08 +0100</pubDate>
-      <guid>//localhost:1313/posts/transform-aws-3/</guid>
+      <guid>hamzabouissi.github.io/posts/transform-aws-3/</guid>
       <description>&lt;h2 id=&#34;brief-description&#34;&gt;Brief description&lt;/h2&gt;
 &lt;p&gt;In this part we should talk about:&lt;/p&gt;
 &lt;ol&gt;
@@ -3538,9 +3538,9 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
     </item>
     <item>
       <title>Transform AWS Exam Generator Architecture to Open Source Part #2: Research and Planning</title>
-      <link>//localhost:1313/posts/transform-aws-2/</link>
+      <link>hamzabouissi.github.io/posts/transform-aws-2/</link>
       <pubDate>Mon, 12 Aug 2024 14:40:04 +0100</pubDate>
-      <guid>//localhost:1313/posts/transform-aws-2/</guid>
+      <guid>hamzabouissi.github.io/posts/transform-aws-2/</guid>
       <description>&lt;h2 id=&#34;replacing-services-phase&#34;&gt;Replacing services Phase&lt;/h2&gt;
 &lt;p&gt;In this article, we will pick this AWS architecture: “a serverless exam generator application for educator,” analyse it and find an open-source alternative solution for each service AWS provides, so if you are interested keep it up if you want to know more.&lt;/p&gt;
 &lt;p&gt;To give a context of how architecture works: it starts with the educator reaching AWS Cognito to create an account either using social media account or a simple email and password. A successful account registration will subscribe the user into SNS to receive notifications.&lt;/p&gt;</description>
@@ -3570,13 +3570,13 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
     </item>
     <item>
       <title>Transform AWS Exam Generator Architecture to Open Source Part #1: Introduction</title>
-      <link>//localhost:1313/posts/transform-aws-1/</link>
+      <link>hamzabouissi.github.io/posts/transform-aws-1/</link>
       <pubDate>Mon, 12 Aug 2024 14:32:49 +0100</pubDate>
-      <guid>//localhost:1313/posts/transform-aws-1/</guid>
+      <guid>hamzabouissi.github.io/posts/transform-aws-1/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;Have you thought of creating an AWS architecture but with open-source projects?&lt;/p&gt;
 &lt;p&gt;In these articles, we will challenge ourselves and transform this AWS architecture: a serverless exam generator application for educators.&lt;/p&gt;
-&lt;p&gt;&lt;img alt=&#34;the architecture diagram&#34; loading=&#34;lazy&#34; src=&#34;//localhost:1313/img/cloud-exam-architecture.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;the architecture diagram&#34; loading=&#34;lazy&#34; src=&#34;hamzabouissi.github.io/img/cloud-exam-architecture.png&#34;&gt;&lt;/p&gt;
 &lt;p&gt;The solution enables educators to instantly create curriculum-aligned assessments with minimal effort. Students can take personalised quizzes and get immediate feedback on their performance.&lt;/p&gt;
 &lt;p&gt;We will transform and replace each service varying from Cognito, Lambda, DynamoDb, fargate…etc with its open-source counterpart and host it, where? guessed right, on a Kubernetes cluster.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
@@ -3596,9 +3596,9 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
     </item>
     <item>
       <title>Guardians of hell: hydra kratos oathkeeper</title>
-      <link>//localhost:1313/posts/guardians_of_hell/</link>
+      <link>hamzabouissi.github.io/posts/guardians_of_hell/</link>
       <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
-      <guid>//localhost:1313/posts/guardians_of_hell/</guid>
+      <guid>hamzabouissi.github.io/posts/guardians_of_hell/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.&lt;/p&gt;
 &lt;p&gt;One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.&lt;/p&gt;</description>
@@ -4767,9 +4767,9 @@ So here is the added code:</p>
     </item>
     <item>
       <title>Oops...Etcd went down</title>
-      <link>//localhost:1313/posts/etcd_went_down/</link>
+      <link>hamzabouissi.github.io/posts/etcd_went_down/</link>
       <pubDate>Thu, 30 May 2024 11:12:57 +0100</pubDate>
-      <guid>//localhost:1313/posts/etcd_went_down/</guid>
+      <guid>hamzabouissi.github.io/posts/etcd_went_down/</guid>
       <description>&lt;h2 id=&#34;introduction-with-1-mistake&#34;&gt;Introduction with 1-Mistake&lt;/h2&gt;
 &lt;p&gt;On that shiny day, I got a project that required deploying a mongodb cluster,
 After a few searches, I found percona Operator, moved into installation section and copied the helm install command.&lt;/p&gt;
@@ -4979,9 +4979,9 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
     </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
-      <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
+      <link>hamzabouissi.github.io/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
-      <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
+      <guid>hamzabouissi.github.io/posts/deploy-gitea-k8s/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
@@ -5608,18 +5608,18 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: Hide Your Secrets</title>
-      <link>//localhost:1313/posts/hide-your-secrets/</link>
+      <link>hamzabouissi.github.io/posts/hide-your-secrets/</link>
       <pubDate>Fri, 19 May 2023 16:14:49 +0100</pubDate>
-      <guid>//localhost:1313/posts/hide-your-secrets/</guid>
+      <guid>hamzabouissi.github.io/posts/hide-your-secrets/</guid>
       <description>&lt;p&gt;HIDING&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>HIDING</p>
 ]]></content:encoded>
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: Confession</title>
-      <link>//localhost:1313/posts/confession/</link>
+      <link>hamzabouissi.github.io/posts/confession/</link>
       <pubDate>Tue, 25 Apr 2023 16:12:38 +0100</pubDate>
-      <guid>//localhost:1313/posts/confession/</guid>
+      <guid>hamzabouissi.github.io/posts/confession/</guid>
       <description>&lt;p&gt;(Knock on the door)&lt;/p&gt;
 &lt;p&gt;(door opens)(some background noise of the company like people shatter or talk)&lt;/p&gt;
 &lt;p&gt;Yeah, Come In&lt;/p&gt;
@@ -5673,9 +5673,9 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: Stress Swallows You</title>
-      <link>//localhost:1313/posts/stress-swallows-you/</link>
+      <link>hamzabouissi.github.io/posts/stress-swallows-you/</link>
       <pubDate>Thu, 20 Apr 2023 15:36:32 +0100</pubDate>
-      <guid>//localhost:1313/posts/stress-swallows-you/</guid>
+      <guid>hamzabouissi.github.io/posts/stress-swallows-you/</guid>
       <description>&lt;blockquote&gt;
 &lt;p&gt;&lt;em&gt;3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.&lt;/em&gt;&lt;/p&gt;
 &lt;/blockquote&gt;
@@ -5725,9 +5725,9 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: Determination</title>
-      <link>//localhost:1313/posts/determination/</link>
+      <link>hamzabouissi.github.io/posts/determination/</link>
       <pubDate>Sun, 16 Apr 2023 16:05:46 +0100</pubDate>
-      <guid>//localhost:1313/posts/determination/</guid>
+      <guid>hamzabouissi.github.io/posts/determination/</guid>
       <description>&lt;blockquote&gt;
 &lt;p&gt;You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.&lt;br&gt;
 So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.&lt;/p&gt;</description>
@@ -5976,9 +5976,9 @@ Outputs:
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: The Search</title>
-      <link>//localhost:1313/posts/the-search/</link>
+      <link>hamzabouissi.github.io/posts/the-search/</link>
       <pubDate>Wed, 12 Apr 2023 15:28:36 +0100</pubDate>
-      <guid>//localhost:1313/posts/the-search/</guid>
+      <guid>hamzabouissi.github.io/posts/the-search/</guid>
       <description>&lt;h2 id=&#34;key-points&#34;&gt;&lt;strong&gt;Key points&lt;/strong&gt;&lt;/h2&gt;
 &lt;ul&gt;
 &lt;li&gt;wake up with an email&lt;/li&gt;
@@ -6034,9 +6034,9 @@ Outputs:
     </item>
     <item>
       <title>GCP -&gt; AWS Migration: The Beginning</title>
-      <link>//localhost:1313/posts/the-beginning/</link>
+      <link>hamzabouissi.github.io/posts/the-beginning/</link>
       <pubDate>Mon, 10 Apr 2023 15:25:26 +0100</pubDate>
-      <guid>//localhost:1313/posts/the-beginning/</guid>
+      <guid>hamzabouissi.github.io/posts/the-beginning/</guid>
       <description>&lt;h3 id=&#34;key-points&#34;&gt;Key Points:&lt;/h3&gt;
 &lt;ul&gt;
 &lt;li&gt;the boy is still an amateur, this is his first experience of him with DevOps&lt;/li&gt;
@@ -6101,9 +6101,9 @@ Outputs:
     </item>
     <item>
       <title>Deployment Preview with AWS CloudFront</title>
-      <link>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</link>
+      <link>hamzabouissi.github.io/posts/deployment-preview-with-aws-cloudfront/</link>
       <pubDate>Tue, 10 Jan 2023 11:39:04 +0100</pubDate>
-      <guid>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</guid>
+      <guid>hamzabouissi.github.io/posts/deployment-preview-with-aws-cloudfront/</guid>
       <description>&lt;h3 id=&#34;introduction&#34;&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h3&gt;
 &lt;p&gt;Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.&lt;/p&gt;
 &lt;p&gt;With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.&lt;/p&gt;
