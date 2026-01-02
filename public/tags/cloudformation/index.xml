@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.133.0</generator>
+    <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Sun, 16 Apr 2023 16:05:46 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/cloudformation/index.xml" rel="self" type="application/rss+xml" />
@@ -18,8 +18,9 @@
       <link>//localhost:1313/posts/determination/</link>
       <pubDate>Sun, 16 Apr 2023 16:05:46 +0100</pubDate>
       <guid>//localhost:1313/posts/determination/</guid>
-      <description>You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.
-So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused.</description>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.&lt;br&gt;
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<blockquote>
 <p>You know that feeling ?, when you&rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&rsquo;t work then your mind tells you &ldquo;you need to change it a little bit&rdquo;.<br>
 So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.</p>

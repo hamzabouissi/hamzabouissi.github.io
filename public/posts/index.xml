@@ -9,25 +9,672 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.133.0</generator>
+    <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 12 Aug 2024 14:42:01 +0100</lastBuildDate>
+    <lastBuildDate>Wed, 31 Dec 2025 00:00:00 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>The Tale of Kubernetes Loadbalancer &#34;Service&#34; In The Agnostic World of Clouds</title>
+      <link>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</link>
+      <pubDate>Wed, 31 Dec 2025 00:00:00 +0100</pubDate>
+      <guid>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</guid>
+      <description>&lt;h2 id=&#34;prologue&#34;&gt;&lt;strong&gt;Prologue&lt;/strong&gt;&lt;/h2&gt;
+&lt;p&gt;One of the key features for the “GlueOps Platform” to work is installing a LoadBalancer, and because we’re using GlueKube to create kubernetes cluster in a cloud agnostic way, getting the LoadBalancer to work isn’t that easy, as each cloud providers requires different setup, especially for providers with no CCM or in an on-prem installation.&lt;/p&gt;
+&lt;h2 id=&#34;the-birth-of-the-loadbalancer-in-the-kingdom-of-kubernetes&#34;&gt;&lt;strong&gt;The Birth of the LoadBalancer in the Kingdom of Kubernetes&lt;/strong&gt;&lt;/h2&gt;
+&lt;p&gt;In the realm of cloud-native deployments, a Kubernetes LoadBalancer &lt;code&gt;Service&lt;/code&gt; typically interacts with the underlying cloud provider&amp;rsquo;s infrastructure through a Cloud Controller Manager (CCM). When a &lt;code&gt;Service&lt;/code&gt; of type &lt;code&gt;LoadBalancer&lt;/code&gt; is declared, the CCM translates this request into a cloud-specific API call, provisioning a load balancer resource (e.g., an AWS ELB, a Google Cloud Load Balancer, or an Azure Load Balancer) in the respective cloud environment. This external load balancer then directs traffic to the Kubernetes worker nodes where the application pods are running.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<h2 id="prologue"><strong>Prologue</strong></h2>
+<p>One of the key features for the “GlueOps Platform” to work is installing a LoadBalancer, and because we’re using GlueKube to create kubernetes cluster in a cloud agnostic way, getting the LoadBalancer to work isn’t that easy, as each cloud providers requires different setup, especially for providers with no CCM or in an on-prem installation.</p>
+<h2 id="the-birth-of-the-loadbalancer-in-the-kingdom-of-kubernetes"><strong>The Birth of the LoadBalancer in the Kingdom of Kubernetes</strong></h2>
+<p>In the realm of cloud-native deployments, a Kubernetes LoadBalancer <code>Service</code> typically interacts with the underlying cloud provider&rsquo;s infrastructure through a Cloud Controller Manager (CCM). When a <code>Service</code> of type <code>LoadBalancer</code> is declared, the CCM translates this request into a cloud-specific API call, provisioning a load balancer resource (e.g., an AWS ELB, a Google Cloud Load Balancer, or an Azure Load Balancer) in the respective cloud environment. This external load balancer then directs traffic to the Kubernetes worker nodes where the application pods are running.</p>
+<p>However, this seamless integration is not universally available across all cloud providers or, more significantly, in on-premises deployments. For cloud providers without a dedicated CCM or for on-premise Kubernetes clusters, the <code>LoadBalancer</code> service type does not automatically provision an external load balancer. In these scenarios, the <code>LoadBalancer</code> service remains in a pending state, as there&rsquo;s no native mechanism to allocate an external IP address and manage the load balancing infrastructure. This necessitates alternative solutions to expose applications to external traffic, as the automatic provisioning of an external load balancer, a key feature in CCM-enabled environments, is absent.</p>
+<h2 id="the-dark-ages-how-we-once-faced-the-loadbalancer-problem"><strong>The Dark Ages: How We Once Faced the LoadBalancer Problem</strong></h2>
+<p>During our research, we stumbled into two different ways to get the Loadbalancer working: <strong>LoxiLB</strong> and <strong>HAProxy</strong>.</p>
+<p>Both require additional LoadBalancer to maintain but LoxiLB was easier to setup and maintain because it comes with a daemonset you apply that watch for any “loadBalancer service type” and then add it as a rule in the LoxiLB.</p>
+<p>One of the main limitations we encountered is that the load balancer nodes are not managed as first-class Kubernetes resources. Kubernetes excels when it can declaratively manage the full lifecycle of infrastructure components—creation, updates, scaling, healing, and decommissioning. In this case, the load balancer nodes sit outside that control plane.</p>
+<p>This has practical consequences:</p>
+<ul>
+<li>
+<p>Kubernetes cannot automatically reconcile drift if a load balancer node becomes unhealthy.</p>
+</li>
+<li>
+<p>Node replacement, upgrades, or scaling require external tooling or manual intervention.</p>
+</li>
+<li>
+<p>Standard Kubernetes patterns such as self-healing, rolling updates, and GitOps-driven reconciliation are not naturally applicable.</p>
+</li>
+</ul>
+<p>Because these load balancer nodes live outside Kubernetes lifecycle management, observability does not come for free.
+And the Last factor that raised concerns was the project’s commit and support history.</p>
+<p>On the other side, we couldn&rsquo;t find an updated operator to handle the “LoadBalancer service type”  for HAProxy, so we decided to use NodePort instead with fixed ports values and then pass those values to the HAProxy configuration file like the following:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">frontend nodeport-frontend-https  
+</span></span><span class="line"><span class="cl">  bind *:443  
+</span></span><span class="line"><span class="cl">  mode tcp  
+</span></span><span class="line"><span class="cl">  option tcplog  
+</span></span><span class="line"><span class="cl">  timeout client 10s  
+</span></span><span class="line"><span class="cl">  default_backend nodeport-backend-https
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">backend nodeport-backend-https  
+</span></span><span class="line"><span class="cl">  mode tcp  
+</span></span><span class="line"><span class="cl">  timeout connect 10s  
+</span></span><span class="line"><span class="cl">  timeout server 10s  
+</span></span><span class="line"><span class="cl">  balance roundrobin
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">{% for worker in k8s_workers %}  
+</span></span><span class="line"><span class="cl">  server worker-node-{{ loop.index }} {{worker}}:{{ nginx_ingress.https_port }} check  
+</span></span><span class="line"><span class="cl">{% endfor %}
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This approach led us into an abyss of many sequential changes.</p>
+<p>First we’re using <strong>external-dns</strong> to upsert platform DNS records, and because we’re no longer using LoadBalancer, then the Service and Ingress resources will not get an IP assigned.</p>
+<p>To mitigate the above problem, we used external-dns annotation for the Service resource called: “<a href="http://external-dns.alpha.kubernetes.io/target"><code>external-dns.alpha.kubernetes.io/target</code></a><code>”</code>, we passed it the LoadBalancer’s public IP to register the upcoming DNS records with it.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">controller: 
+</span></span><span class="line"><span class="cl"> service:  
+</span></span><span class="line"><span class="cl">    annotations:  
+</span></span><span class="line"><span class="cl">        external-dns.alpha.kubernetes.io/target: 12.12.12.12
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Now talking about the cons</p>
+<p>First, for the current method to work we need to create a Lb(outside of Kubernetes), upgrading it when needed and making sure it’s healthy.</p>
+<p>Second, because we’re installing Nginx ingress inside Kubernetes, we need to make sure every feature(like proxy protocol..) we’re using can be compatible with HAProxy.</p>
+<p>While we didn’t choose this method, it taught us a lot more about kubernetes Service resource and how external-dns and nginx-ingress work interchangeably, also a small thing to tell, during our research we found a small bug in the pomerium ingress controller when we used the nodeport service type, here is a link to our <a href="https://github.com/pomerium/ingress-controller/pull/1099">PR</a>:</p>
+<h2 id="the-false-prophet-why-metallb-couldnt-save-the-realm"><strong>The False Prophet: Why MetalLB Couldn’t Save the Realm</strong></h2>
+<p>If you write “installing kubernetes on-prem”, you will find a bunch of articles talking about <strong>MetalLB</strong> and how it’s the go-to solution to your LB problem on-prem. But our case was quite different, we’re not just installing the cluster on-prem, we wanna do it on every node that you have ssh on, no matter the provider.</p>
+<p>For <strong>MetalLB</strong> this isn&rsquo;t the case, because MetalLB needs a control over the L3/L2 network layer to advertise the used IPs, and that isn’t possible for providers like AWS/GCP/AZURE…</p>
+<h2 id="the-glimpse-of-truth-discovering-the-light"><strong>The Glimpse Of Truth: Discovering The Light</strong></h2>
+<p>We did another research and found a simpler approach , that goes like the following:</p>
+<p>Upon bootstrapping the cluster, we label/taint the nodes where we want nginx-ingress to be scheduled on with <strong>use-as-lb=true.</strong> Then we save those node public IP’s for the next steps.</p>
+<p>Now Inside the values.yaml for ingress-nginx we pass the labeled nodes public IP’s in externalIPs field</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">controller</span><span class="p">:</span>  
+</span></span><span class="line"><span class="cl">    <span class="n">service</span><span class="p">:</span>  
+</span></span><span class="line"><span class="cl">        <span class="n">type</span><span class="p">:</span> <span class="s2">&#34;LoadBalancer&#34;</span>  
+</span></span><span class="line"><span class="cl">        <span class="n">externalIPs</span><span class="p">:</span> <span class="p">[{{</span> <span class="o">.</span><span class="n">Values</span><span class="o">.</span><span class="n">loadbalancer_ips</span><span class="o">.</span><span class="n">public</span> <span class="o">|</span> <span class="n">join</span> <span class="s2">&#34;, &#34;</span> <span class="p">}}]</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Then we install nginx-ingress, and because &ldquo;LoadBalancer&rdquo; service  externalIP is populated, the pending state will disappear and ingress resources will have the IPs assigned.</p>
+<p>One small issue we noticed is, ArgoCD “LoadBalancer Service” healthcheck doesn’t consider service with externalIPs as healthy, so we added custom config:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">resource</span><span class="o">.</span><span class="n">customizations</span><span class="o">.</span><span class="n">health</span><span class="o">.</span><span class="n">Service</span><span class="p">:</span> <span class="o">|</span>
+</span></span><span class="line"><span class="cl">  <span class="n">hs</span> <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">externalIPs</span> <span class="o">~=</span> <span class="n">nil</span> <span class="ow">and</span> <span class="c1">#obj.spec.externalIPs &gt; 0 then  </span>
+</span></span><span class="line"><span class="cl">    <span class="n">hs</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&#34;Healthy&#34;</span>  
+</span></span><span class="line"><span class="cl">    <span class="n">hs</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="s2">&#34;Service is exposed via externalIPs&#34;</span>  
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">hs</span>  
+</span></span><span class="line"><span class="cl">  <span class="n">end</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&#34;LoadBalancer&#34;</span> <span class="n">then</span>  
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">loadBalancer</span> <span class="o">~=</span> <span class="n">nil</span> <span class="ow">and</span> <span class="n">obj</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">loadBalancer</span><span class="o">.</span><span class="n">ingress</span> <span class="o">~=</span> <span class="n">nil</span> <span class="ow">and</span> <span class="c1">#obj.status.loadBalancer.ingress &gt; 0 then  </span>
+</span></span><span class="line"><span class="cl">      <span class="n">hs</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&#34;Healthy&#34;</span>  
+</span></span><span class="line"><span class="cl">      <span class="n">hs</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="s2">&#34;LoadBalancer has been provisioned&#34;</span>  
+</span></span><span class="line"><span class="cl">    <span class="k">else</span>  
+</span></span><span class="line"><span class="cl">      <span class="o">--</span> <span class="n">If</span> <span class="n">no</span> <span class="n">ingress</span> <span class="ne">IP</span><span class="p">,</span> <span class="n">the</span> <span class="n">LoadBalancer</span> <span class="n">is</span> <span class="n">still</span> <span class="n">being</span> <span class="n">created</span><span class="o">.</span>  
+</span></span><span class="line"><span class="cl">      <span class="n">hs</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&#34;Progressing&#34;</span>  
+</span></span><span class="line"><span class="cl">      <span class="n">hs</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="s2">&#34;Waiting for LoadBalancer to be provisioned&#34;</span>  
+</span></span><span class="line"><span class="cl">    <span class="n">end</span>  
+</span></span><span class="line"><span class="cl">  <span class="k">else</span>  
+</span></span><span class="line"><span class="cl">    <span class="n">hs</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&#34;Healthy&#34;</span>  
+</span></span><span class="line"><span class="cl">    <span class="n">hs</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="s2">&#34;Service is ready&#34;</span>  
+</span></span><span class="line"><span class="cl">  <span class="n">end</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">hs</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h2 id="the-light-a-tailored-cloud-controller-manager"><strong>The Light: A Tailored Cloud Controller Manager</strong></h2>
+<p>The externalIP approach was working great for us, until we heard about the ingress-nginx news, and we wanted to give our stack a test and switch to traefik, we thought the same behaviour will work just fine, but it didn’t.</p>
+<p>It turned out that traefik controller doesn’t accept externalIP as a valid IP that will be assigned to its ingress, it only assigns whatever the service.status.loadbalancer.ingress have.</p>
+<p>So I told the team, Let’s do it the kubernetes expected way, we will build a tailored <strong>CCM</strong> for our needs. The algorithm for the CCM is :</p>
+<p>1- Watch for certain service with <strong>type: loadbalancer and label use-as-loadbalancer=platform | public.</strong><br>
+2- Search for the <strong>healthy</strong> nodes with same labels<br>
+3- if nodes exist, we retrieve nodes PUBLIC/PRIVATE ips and save them on <strong>service.status.loadbalancer.ingress[].ip.</strong><br>
+4- if you remove service label <strong>use-as-loadbalancer value,</strong> the controller will assume you don’t wanna consider it again, so it will remove the assigned IP and return it back to &lt;pending&gt;.</p>
+<p>The controller will reconcile every 30s, so if one of the nodes goes <strong>not-ready/unhealthy,</strong> the controller will remove it in the next iteration.</p>
+<p>Creating CCM from scratch is a pain, so my CTO(venkat) suggested using the <a href="https://metacontroller.github.io/metacontroller/intro.html">metacontroller</a> , the metacontroller will handle the watching part and invoke a webhook API every x seconds. So my objective is to build that API.</p>
+<p>Here is an example of <strong>DecoratorController</strong>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">apiVersion</span><span class="p">:</span> <span class="n">metacontroller</span><span class="o">.</span><span class="n">k8s</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">v1alpha1</span>
+</span></span><span class="line"><span class="cl"><span class="n">kind</span><span class="p">:</span> <span class="n">DecoratorController</span>
+</span></span><span class="line"><span class="cl"><span class="n">metadata</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">  <span class="n">name</span><span class="p">:</span> <span class="n">lb</span><span class="o">-</span><span class="n">service</span><span class="o">-</span><span class="n">decorator</span>
+</span></span><span class="line"><span class="cl"><span class="n">spec</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">  <span class="n">resources</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">  <span class="o">-</span> <span class="n">apiVersion</span><span class="p">:</span> <span class="n">v1</span>
+</span></span><span class="line"><span class="cl">    <span class="n">resource</span><span class="p">:</span> <span class="n">services</span>
+</span></span><span class="line"><span class="cl">    <span class="n">labelSelector</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">      <span class="n">matchExpressions</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">      <span class="o">-</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="s2">&#34;use-as-loadbalancer&#34;</span><span class="p">,</span> <span class="n">operator</span><span class="p">:</span> <span class="n">In</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="p">[</span><span class="s2">&#34;platform&#34;</span><span class="p">,</span><span class="s2">&#34;public&#34;</span><span class="p">]}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">resyncPeriodSeconds</span><span class="p">:</span> <span class="mi">30</span>
+</span></span><span class="line"><span class="cl">  <span class="n">hooks</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">sync</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">      <span class="n">webhook</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">url</span><span class="p">:</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">webhook</span><span class="o">-</span><span class="n">controller</span><span class="o">.</span><span class="n">default</span><span class="o">.</span><span class="n">svc</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">local</span><span class="o">/</span><span class="n">sync</span>
+</span></span><span class="line"><span class="cl">    <span class="n">finalize</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">      <span class="n">webhook</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">url</span><span class="p">:</span> <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">webhook</span><span class="o">-</span><span class="n">controller</span><span class="o">.</span><span class="n">default</span><span class="o">.</span><span class="n">svc</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">local</span><span class="o">/</span><span class="n">finalize</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>And the webhook is a FastAPI application:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-py" data-lang="py"><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">kubernetes</span> <span class="kn">import</span> <span class="n">client</span><span class="p">,</span> <span class="n">config</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">kubernetes.client.rest</span> <span class="kn">import</span> <span class="n">ApiException</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nd">@app.post</span><span class="p">(</span><span class="s2">&#34;/sync&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">sync</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">service</span> <span class="o">=</span> <span class="n">request</span><span class="p">[</span><span class="s1">&#39;object&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">service_loadbalancer_label_value</span> <span class="o">=</span> <span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;labels&#39;</span><span class="p">][</span><span class="s1">&#39;use-as-loadbalancer&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">   
+</span></span><span class="line"><span class="cl">    <span class="n">public_ips</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">private_ips</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">config</span><span class="o">.</span><span class="n">load_incluster_config</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">    <span class="n">v1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="n">nodes</span> <span class="o">=</span> <span class="n">v1</span><span class="o">.</span><span class="n">list_node</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Processing Service </span><span class="si">{</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> with loadbalancer label value: </span><span class="si">{</span><span class="n">service_loadbalancer_label_value</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="c1"># 1. Check if Node is Ready</span>
+</span></span><span class="line"><span class="cl">        <span class="n">conditions</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">conditions</span>
+</span></span><span class="line"><span class="cl">        <span class="n">is_ready</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;Ready&#39;</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;True&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">conditions</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1"># 2. Check if Node has Traefik (optional but recommended)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">labels</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">labels</span>
+</span></span><span class="line"><span class="cl">        <span class="n">match_lb</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;use-as-loadbalancer&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">service_loadbalancer_label_value</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1"># get internal ip</span>
+</span></span><span class="line"><span class="cl">        <span class="n">privte_ip</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">addresses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">address</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">is_ready</span> <span class="ow">and</span> <span class="n">match_lb</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="c1"># 3. Extract Public IP</span>
+</span></span><span class="line"><span class="cl">            <span class="n">pub_ip</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="s1">&#39;node-public-ip&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="n">pub_ip</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">public_ips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pub_ip</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="n">private_ips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">privte_ip</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Healthy IPs for Service </span><span class="si">{</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">public_ips</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># 4. Return the Status Update</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;status&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="s2">&#34;loadBalancer&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;ingress&#34;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&#34;ip&#34;</span><span class="p">:</span> <span class="n">ip</span><span class="p">}</span> <span class="k">for</span> <span class="n">ip</span> <span class="ow">in</span> <span class="n">public_ips</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nd">@app.post</span><span class="p">(</span><span class="s2">&#34;/finalize&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;status&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="s2">&#34;loadBalancer&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;ingress&#34;</span><span class="p">:</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h2 id="the-curse-of-11-nat-a-cloud-providers-hidden-dilemma"><strong>The Curse of 1:1 NAT: A Cloud Provider’s Hidden Dilemma</strong></h2>
+<p>At first, we tested the whole process in Hetzner, but it turns out AWS/GCP/AZURE have different networking models.<br>
+For instance if you deploy an EC2, have public IP(12.12.12.12) and you run <code>ifconfig</code>, you will see only the network interface for private IP, in contrary to other providers you can see both public and private IP, here screenshots for AWS and hetzner:</p>
+<p><strong>AWS</strong>:<br>
+<img alt="AWS EC2 ifconfig" loading="lazy" src="https://www.rprateek.com/wp-content/uploads/2021/06/EC2-ifconfig-information.jpg"></p>
+<p><strong>Hetzner:</strong><br>
+<img alt="Hetzner ifconfig" loading="lazy" src="https://docs.flexiwan.com/_images/Hetzner9.PNG"></p>
+<p>For AWS, when you send a request to the EC2 Public IP, internally a <strong>1:1 NAT Gateway</strong> search for the private IP mapped to that public IP and route traffic to it. So why is this important?!</p>
+<p>This is important because, if we deploy the same approach, kube-proxy internally will create an IPTable rule that matches requests directed to <code>Public IP</code>, but this will never happen as AWS will only send requests directed to private IP, so what&rsquo;s the solution?!</p>
+<p>We modify the CCM code to create another internal service with the same specs as the current controller&rsquo;s service with small changes on <strong>externalIP</strong> pointed to node&rsquo;s private IPs and type <strong>ClusterIP</strong>.</p>
+<p>And here is the modified code for</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">  1
+</span><span class="lnt">  2
+</span><span class="lnt">  3
+</span><span class="lnt">  4
+</span><span class="lnt">  5
+</span><span class="lnt">  6
+</span><span class="lnt">  7
+</span><span class="lnt">  8
+</span><span class="lnt">  9
+</span><span class="lnt"> 10
+</span><span class="lnt"> 11
+</span><span class="lnt"> 12
+</span><span class="lnt"> 13
+</span><span class="lnt"> 14
+</span><span class="lnt"> 15
+</span><span class="lnt"> 16
+</span><span class="lnt"> 17
+</span><span class="lnt"> 18
+</span><span class="lnt"> 19
+</span><span class="lnt"> 20
+</span><span class="lnt"> 21
+</span><span class="lnt"> 22
+</span><span class="lnt"> 23
+</span><span class="lnt"> 24
+</span><span class="lnt"> 25
+</span><span class="lnt"> 26
+</span><span class="lnt"> 27
+</span><span class="lnt"> 28
+</span><span class="lnt"> 29
+</span><span class="lnt"> 30
+</span><span class="lnt"> 31
+</span><span class="lnt"> 32
+</span><span class="lnt"> 33
+</span><span class="lnt"> 34
+</span><span class="lnt"> 35
+</span><span class="lnt"> 36
+</span><span class="lnt"> 37
+</span><span class="lnt"> 38
+</span><span class="lnt"> 39
+</span><span class="lnt"> 40
+</span><span class="lnt"> 41
+</span><span class="lnt"> 42
+</span><span class="lnt"> 43
+</span><span class="lnt"> 44
+</span><span class="lnt"> 45
+</span><span class="lnt"> 46
+</span><span class="lnt"> 47
+</span><span class="lnt"> 48
+</span><span class="lnt"> 49
+</span><span class="lnt"> 50
+</span><span class="lnt"> 51
+</span><span class="lnt"> 52
+</span><span class="lnt"> 53
+</span><span class="lnt"> 54
+</span><span class="lnt"> 55
+</span><span class="lnt"> 56
+</span><span class="lnt"> 57
+</span><span class="lnt"> 58
+</span><span class="lnt"> 59
+</span><span class="lnt"> 60
+</span><span class="lnt"> 61
+</span><span class="lnt"> 62
+</span><span class="lnt"> 63
+</span><span class="lnt"> 64
+</span><span class="lnt"> 65
+</span><span class="lnt"> 66
+</span><span class="lnt"> 67
+</span><span class="lnt"> 68
+</span><span class="lnt"> 69
+</span><span class="lnt"> 70
+</span><span class="lnt"> 71
+</span><span class="lnt"> 72
+</span><span class="lnt"> 73
+</span><span class="lnt"> 74
+</span><span class="lnt"> 75
+</span><span class="lnt"> 76
+</span><span class="lnt"> 77
+</span><span class="lnt"> 78
+</span><span class="lnt"> 79
+</span><span class="lnt"> 80
+</span><span class="lnt"> 81
+</span><span class="lnt"> 82
+</span><span class="lnt"> 83
+</span><span class="lnt"> 84
+</span><span class="lnt"> 85
+</span><span class="lnt"> 86
+</span><span class="lnt"> 87
+</span><span class="lnt"> 88
+</span><span class="lnt"> 89
+</span><span class="lnt"> 90
+</span><span class="lnt"> 91
+</span><span class="lnt"> 92
+</span><span class="lnt"> 93
+</span><span class="lnt"> 94
+</span><span class="lnt"> 95
+</span><span class="lnt"> 96
+</span><span class="lnt"> 97
+</span><span class="lnt"> 98
+</span><span class="lnt"> 99
+</span><span class="lnt">100
+</span><span class="lnt">101
+</span><span class="lnt">102
+</span><span class="lnt">103
+</span><span class="lnt">104
+</span><span class="lnt">105
+</span><span class="lnt">106
+</span><span class="lnt">107
+</span><span class="lnt">108
+</span><span class="lnt">109
+</span><span class="lnt">110
+</span><span class="lnt">111
+</span><span class="lnt">112
+</span><span class="lnt">113
+</span><span class="lnt">114
+</span><span class="lnt">115
+</span><span class="lnt">116
+</span><span class="lnt">117
+</span><span class="lnt">118
+</span><span class="lnt">119
+</span><span class="lnt">120
+</span><span class="lnt">121
+</span><span class="lnt">122
+</span><span class="lnt">123
+</span><span class="lnt">124
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-py" data-lang="py"><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">kubernetes</span> <span class="kn">import</span> <span class="n">client</span><span class="p">,</span> <span class="n">config</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">kubernetes.client.rest</span> <span class="kn">import</span> <span class="n">ApiException</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nd">@app.post</span><span class="p">(</span><span class="s2">&#34;/sync&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">sync</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">service</span> <span class="o">=</span> <span class="n">request</span><span class="p">[</span><span class="s1">&#39;object&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">service_loadbalancer_label_value</span> <span class="o">=</span> <span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;labels&#39;</span><span class="p">][</span><span class="s1">&#39;use-as-loadbalancer&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">public_ips</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">private_ips</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">config</span><span class="o">.</span><span class="n">load_incluster_config</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">    <span class="n">v1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="n">nodes</span> <span class="o">=</span> <span class="n">v1</span><span class="o">.</span><span class="n">list_node</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Processing Service </span><span class="si">{</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> with loadbalancer label value: </span><span class="si">{</span><span class="n">service_loadbalancer_label_value</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="c1"># 1. Check if Node is Ready</span>
+</span></span><span class="line"><span class="cl">        <span class="n">conditions</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">conditions</span>
+</span></span><span class="line"><span class="cl">        <span class="n">is_ready</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;Ready&#39;</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;True&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">conditions</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1"># 2. Check if Node has Traefik (optional but recommended)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">labels</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">labels</span>
+</span></span><span class="line"><span class="cl">        <span class="n">match_lb</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;use-as-loadbalancer&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">service_loadbalancer_label_value</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1"># get internal ip</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">is_ready</span> <span class="ow">and</span> <span class="n">match_lb</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="c1"># 3. Extract Public IP</span>
+</span></span><span class="line"><span class="cl">            <span class="n">pub_ip</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="s1">&#39;node-public-ip&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">            <span class="n">privte_ip</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="s1">&#39;node-private-ip&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="n">pub_ip</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">public_ips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pub_ip</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="n">private_ips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">privte_ip</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">service_ports</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">client</span><span class="o">.</span><span class="n">V1ServicePort</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">service</span><span class="p">[</span><span class="s1">&#39;spec&#39;</span><span class="p">][</span><span class="s1">&#39;ports&#39;</span><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">service_ports</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">client</span><span class="o">.</span><span class="n">V1ServicePort</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">                <span class="n">name</span><span class="o">=</span><span class="n">port</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">                <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">                <span class="n">protocol</span><span class="o">=</span><span class="n">port</span><span class="p">[</span><span class="s1">&#39;protocol&#39;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">                <span class="n">target_port</span><span class="o">=</span><span class="n">port</span><span class="p">[</span><span class="s1">&#39;targetPort&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">            <span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">internal_service</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">V1Service</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="n">api_version</span><span class="o">=</span><span class="s2">&#34;v1&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">kind</span><span class="o">=</span><span class="s2">&#34;Service&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">metadata</span><span class="o">=</span><span class="n">client</span><span class="o">.</span><span class="n">V1ObjectMeta</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">-internal&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">namespace</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;namespace&#39;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">        <span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="n">spec</span><span class="o">=</span><span class="n">client</span><span class="o">.</span><span class="n">V1ServiceSpec</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">selector</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;spec&#39;</span><span class="p">][</span><span class="s1">&#39;selector&#39;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">            <span class="n">ports</span><span class="o">=</span><span class="n">service_ports</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">type</span><span class="o">=</span><span class="s2">&#34;ClusterIP&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">external_i_ps</span><span class="o">=</span><span class="n">private_ips</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="n">external_traffic_policy</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;spec&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;externalTrafficPolicy&#39;</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">            <span class="n">ip_family_policy</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;spec&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ipFamilyPolicy&#39;</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">            <span class="n">session_affinity</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;spec&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sessionAffinity&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">v1</span><span class="o">.</span><span class="n">create_namespaced_service</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">namespace</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;namespace&#39;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">            <span class="n">body</span><span class="o">=</span><span class="n">internal_service</span>
+</span></span><span class="line"><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Successfully created internal service </span><span class="si">{</span><span class="n">internal_service</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">409</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Internal service </span><span class="si">{</span><span class="n">internal_service</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> already exists. Patching (updating)...&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">v1</span><span class="o">.</span><span class="n">patch_namespaced_service</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">                    <span class="n">name</span><span class="o">=</span><span class="n">internal_service</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                    <span class="n">namespace</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;namespace&#39;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">                    <span class="n">body</span><span class="o">=</span><span class="n">internal_service</span>
+</span></span><span class="line"><span class="cl">                <span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Successfully updated internal service </span><span class="si">{</span><span class="n">internal_service</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e_patch</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Failed to patch internal service: </span><span class="si">{</span><span class="n">e_patch</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Failed to create internal service: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">raise</span> <span class="n">e</span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># 4. Return the Status Update</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;status&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="s2">&#34;loadBalancer&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;ingress&#34;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&#34;ip&#34;</span><span class="p">:</span> <span class="n">ip</span><span class="p">}</span> <span class="k">for</span> <span class="n">ip</span> <span class="ow">in</span> <span class="n">public_ips</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nd">@app.post</span><span class="p">(</span><span class="s2">&#34;/finalize&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">finilize</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">service</span> <span class="o">=</span> <span class="n">request</span><span class="p">[</span><span class="s1">&#39;object&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">config</span><span class="o">.</span><span class="n">load_incluster_config</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="n">v1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">v1</span><span class="o">.</span><span class="n">delete_namespaced_service</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">-internal&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">namespace</span><span class="o">=</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;namespace&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Successfully deleted internal service </span><span class="si">{</span><span class="n">service</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">-internal&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;status&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="s2">&#34;loadBalancer&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;ingress&#34;</span><span class="p">:</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>And that’s it, with that kube-proxy will create a route to match requests directed for that private IP’s.</p>
+<h2 id="summary">Summary</h2>
+<p>Faced with the challenge of creating a cloud-agnostic Kubernetes <code>LoadBalancer</code> Service without a native Cloud Controller Manager (CCM),We explored several solutions.</p>
+<p>Initial attempts, including <strong>LoxiLB</strong>, <strong>HAProxy + NodePort</strong> (manual external management), <strong>MetalLB</strong> (incompatible with major clouds lacking L2/L3 control), and <strong>ExternalIPs</strong> (limited ingress controller support), all failed to provide a robust, automated solution.</p>
+<p>The ultimate fix was a custom, <strong>Metacontroller-based CCM</strong> named <strong>Gluekube-CCM</strong>. that relies on the installed ingress controller:</p>
+<ol>
+<li><strong>Watches</strong> for specific <code>LoadBalancer</code> Services.</li>
+<li><strong>Identifies</strong> labeled, healthy worker nodes (retrieving their public and private IPs).</li>
+<li><strong>Updates</strong> the Service status with the node&rsquo;s <strong>Public IPs</strong> (for external systems like external-dns).</li>
+<li><strong>Creates</strong> a secondary <strong>ClusterIP Service</strong> using the node&rsquo;s <strong>Private IPs</strong> in the <code>externalIPs</code> field. This step resolves the 1:1 NAT issue in clouds like AWS/GCP/Azure, ensuring <code>kube-proxy</code> correctly routes traffic arriving at the node&rsquo;s private interface.</li>
+</ol>
+<p>This tailored CCM provides a consistent, reliable <code>LoadBalancer</code> experience across diverse environments.</p>
+<p>Here are the Repo mentioned in the article:</p>
+<p>GlueKube: <a href="https://github.com/GlueOps/GlueKube">https://github.com/GlueOps/GlueKube</a><br>
+Gluekube-CCM: <a href="https://github.com/GlueOps/GlueKube-CCM">https://github.com/GlueOps/GlueKube-CCM</a><br>
+Metacontroller: <a href="https://metacontroller.github.io/metacontroller/intro.html">https://metacontroller.github.io/metacontroller/intro.html</a></p>
+]]></content:encoded>
+    </item>
     <item>
       <title>Transform AWS Exam Generator Architecture to Open Source Part #5: Authentication and Emailing</title>
       <link>//localhost:1313/posts/transform-aws-5/</link>
       <pubDate>Mon, 12 Aug 2024 14:42:01 +0100</pubDate>
       <guid>//localhost:1313/posts/transform-aws-5/</guid>
-      <description>Introduction In this article, we’re going to replace the Cognito Service, I choose the Kratos and Oathkeeper from Ory as alternative.
-The main functionalities of Congito here, is offering a way to sign in, sign up with or without SSO, email verification and use Sesssion Web Token for Frontend authorization.
-Here is the full architecture of authentication and authorization
-Don&amp;rsquo;t worry if didnt understand the architecture, we will dig deeper in the next headlines</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;In this article, we’re going to replace the Cognito Service, I choose the Kratos and Oathkeeper from Ory as alternative.&lt;/p&gt;
+&lt;p&gt;The main functionalities of Congito here, is offering a way to sign in, sign up with or without SSO, email verification and use Sesssion Web Token for Frontend authorization.&lt;/p&gt;
+&lt;p&gt;Here is the full architecture of authentication and authorization&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;ory_arch&#34; loading=&#34;lazy&#34; src=&#34;//localhost:1313/img/kratos-oathkeeper-arch.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Don&amp;rsquo;t worry if didnt understand the architecture, we will dig deeper in the next headlines&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>In this article, we’re going to replace the Cognito Service, I choose the Kratos and Oathkeeper from Ory as alternative.</p>
 <p>The main functionalities of Congito here, is offering a way to sign in, sign up with or without SSO, email verification and use Sesssion Web Token for Frontend authorization.</p>
 <p>Here is the full architecture of authentication and authorization</p>
-<p><img loading="lazy" src="/img/kratos-oathkeeper-arch.png" alt="ory_arch"  />
-</p>
+<p><img alt="ory_arch" loading="lazy" src="/img/kratos-oathkeeper-arch.png"></p>
 <p>Don&rsquo;t worry if didnt understand the architecture, we will dig deeper in the next headlines</p>
 <h2 id="kratos">Kratos</h2>
 <p>Kratos is an identity and user management service, we will use it to authenticate user in, verify the email and generate Session Web token to pass it to authorization service later.</p>
@@ -240,8 +887,7 @@ Don&amp;rsquo;t worry if didnt understand the architecture, we will dig deeper i
 <p>Next thing is deploying oathkeeper and sharing this session to authenticate the user.</p>
 <h2 id="oathkeeper">Oathkeeper</h2>
 <p>Oathkeeper has two components API and Proxy, we will pick the proxy service to live in front of the exam-gen and exam-taking UI.</p>
-<p><img loading="lazy" src="https://gruchalski.com/assets/posts/2021-05-20/oathkeeper-proxy-mode.png" alt="oathkeeper-arch"  />
-</p>
+<p><img alt="oathkeeper-arch" loading="lazy" src="https://gruchalski.com/assets/posts/2021-05-20/oathkeeper-proxy-mode.png"></p>
 <p>The Oathkeeper Proxy service has an access list to decide which request should be allowed or deny it. For example we can enable a <strong>cookie_session</strong> on url <strong>exam-generate-frontend</strong> that reference exam-generate internal upstream service</p>
 <p>oathkeeper values.yaml</p>
 <div class="highlight"><div class="chroma">
@@ -811,8 +1457,7 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>here is the new form:</p>
-<p><img loading="lazy" src="/img/kratos-registration-form.png" alt="kratos-new-registration-form"  />
-</p>
+<p><img alt="kratos-new-registration-form" loading="lazy" src="/img/kratos-registration-form.png"></p>
 <p>Getting back to the webhook configuration, we will set an after registration webhook</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -857,16 +1502,16 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span><span class="lnt">9
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">function(ctx)
-</span></span><span class="line"><span class="cl">if ctx.identity.traits.user_type == &#34;student&#34; then
-</span></span><span class="line"><span class="cl">  error &#34;cancel&#34;
-</span></span><span class="line"><span class="cl">else
-</span></span><span class="line"><span class="cl">  {
-</span></span><span class="line"><span class="cl">    &#34;traits&#34;: {
-</span></span><span class="line"><span class="cl">      &#34;email&#34;: ctx.identity.traits.email
-</span></span><span class="line"><span class="cl">    }
-</span></span><span class="line"><span class="cl">  }
-</span></span></code></pre></td></tr></table>
+<pre tabindex="0" class="chroma"><code class="language-jsonnet" data-lang="jsonnet"><span class="line"><span class="cl"><span class="k">function</span><span class="p">(</span><span class="nv">ctx</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">if</span><span class="w"> </span><span class="nv">ctx</span><span class="p">.</span><span class="nv">identity</span><span class="p">.</span><span class="nv">traits</span><span class="p">.</span><span class="nv">user_type</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;student&#34;</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">error</span><span class="w"> </span><span class="s">&#34;cancel&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">else</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nv">&#34;traits&#34;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nv">&#34;email&#34;</span><span class="p">:</span><span class="w"> </span><span class="nv">ctx</span><span class="p">.</span><span class="nv">identity</span><span class="p">.</span><span class="nv">traits</span><span class="p">.</span><span class="nv">email</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now we encode it as base64 and pass it to the body param</p>
 <div class="highlight"><div class="chroma">
@@ -1011,8 +1656,16 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
       <link>//localhost:1313/posts/transform-aws-4/</link>
       <pubDate>Mon, 12 Aug 2024 14:40:10 +0100</pubDate>
       <guid>//localhost:1313/posts/transform-aws-4/</guid>
-      <description>Brief Description In this article, we create the passing part of the exam, the architecture is composed of:
-kubernetes service for Taking Exam UI. Knative service for taking exams. MongoDb for storing student answers. KafkaConnect to capture changed data on MongoDb and move it to a KafkaTopic. Knative service for calculating the scoreboard and send it into a topic. We will follow the same approach in the previous article, we tackle dependency-free services first.</description>
+      <description>&lt;h2 id=&#34;brief-description&#34;&gt;Brief Description&lt;/h2&gt;
+&lt;p&gt;In this article, we create the passing part of the exam, the architecture is composed of:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;kubernetes service for Taking Exam UI.&lt;/li&gt;
+&lt;li&gt;Knative service for taking exams.&lt;/li&gt;
+&lt;li&gt;MongoDb for storing student answers.&lt;/li&gt;
+&lt;li&gt;KafkaConnect to capture changed data on MongoDb and move it to a KafkaTopic.&lt;/li&gt;
+&lt;li&gt;Knative service for calculating the scoreboard and send it into a topic.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;We will follow the same approach in the previous article, we tackle dependency-free services first. the the UI app will require the knative service and mongo to work, so we start with knative service and mongo and then we move into UI and finally the Kafka connect integration with mongodb and knative.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="brief-description">Brief Description</h2>
 <p>In this article, we create the passing part of the exam, the architecture is composed of:</p>
 <ul>
@@ -1189,8 +1842,7 @@ kubernetes service for Taking Exam UI. Knative service for taking exams. MongoDb
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Rerun <strong>helmfile apply</strong>, wait a few minutes and here the cluster status is <strong>ready,</strong> and the <strong>endpoint</strong> for kubernetes internal access.</p>
-<p><img loading="lazy" src="/img/mongo-cluster.png" alt="percona cluster status"  />
-</p>
+<p><img alt="percona cluster status" loading="lazy" src="/img/mongo-cluster.png"></p>
 <p>But for database access we need credentials, which will be found on a secret named <strong>mongodb-cluster-secret</strong>.</p>
 <h2 id="frontend-ui-app">Frontend UI app</h2>
 <p>As both dependencies: exam-take function and mongodb are created, we’re able to deploy the exam-take frontend now.</p>
@@ -1430,8 +2082,7 @@ kubernetes service for Taking Exam UI. Knative service for taking exams. MongoDb
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>and we can access the UI Now.
-<img loading="lazy" src="/img/front-exam-passing.png" alt="front exam passing"  />
-</p>
+<img alt="front exam passing" loading="lazy" src="/img/front-exam-passing.png"></p>
 <p>Now we try the whole thing, remove past files and start, upload the supposed test pdf file, wait for generation, check the taking-exam app, we see it listed the exam, we click, and it generates a form, we answer and voila.</p>
 <p>Finally let’s check the mongodb table for the answers, we list documents inside the score <strong>table,</strong> everything looks good.</p>
 <p>here is a demo for more visual pleasing experience</p>
@@ -1444,8 +2095,7 @@ kubernetes service for Taking Exam UI. Knative service for taking exams. MongoDb
 <p>One of the reasons I choose Kafka besides its seamless integration with knative, is the ability to capture data changes (CDC) from other sources and forward it to topics, this ability is called Kafka Connect.</p>
 <p>Kafka Connect is a tool for scalably and reliably streaming data between Apache Kafka® and other data systems. If we want to capture data the time it gets added into Mongodb, we must configure the Kafka Connect to use the Mongodb Connector which internally listens for Mongodb CDC.</p>
 <p>Kafka Connect will be deployed as a separate Cluster but under the same kubernetes cluster of course</p>
-<p><img loading="lazy" src="/img/kafka-connect-arch.png" alt="kafka connect cluster"  />
-</p>
+<p><img alt="kafka connect cluster" loading="lazy" src="/img/kafka-connect-arch.png"></p>
 <p>Here is the yaml <strong>kafka-connect.yaml</strong>  for creating the cluster:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1787,8 +2437,16 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
       <link>//localhost:1313/posts/transform-aws-3/</link>
       <pubDate>Mon, 12 Aug 2024 14:40:08 +0100</pubDate>
       <guid>//localhost:1313/posts/transform-aws-3/</guid>
-      <description>Brief description In this part we should talk about:
-Kafka topics and difference of deploying between zookeeper and kraft. Create Minio cluster and k8s jobs for adding event notification Knative installation and the invocation with Kafka topics. Hosting of generate-exam frontend in k8s services with ingress, subdomain and reference the WebSocket service. Current Stack I have a K8s cluster composed of three nodes (1 master, 2 control plane) with Talos as the running OS, MetalLB deployed as a load balancer combined with Nginx (nginx.</description>
+      <description>&lt;h2 id=&#34;brief-description&#34;&gt;Brief description&lt;/h2&gt;
+&lt;p&gt;In this part we should talk about:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Kafka topics and difference of deploying between zookeeper and kraft.&lt;/li&gt;
+&lt;li&gt;Create Minio cluster and k8s jobs for adding event notification&lt;/li&gt;
+&lt;li&gt;Knative installation and the invocation with Kafka topics.&lt;/li&gt;
+&lt;li&gt;Hosting of generate-exam frontend in k8s services with ingress, subdomain and reference the WebSocket service.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&#34;current-stack&#34;&gt;Current Stack&lt;/h2&gt;
+&lt;p&gt;I have a K8s cluster composed of three nodes (1 master, 2 control plane) with &lt;code&gt;Talos&lt;/code&gt; as the running OS, &lt;code&gt;MetalLB&lt;/code&gt; deployed as a load balancer combined with &lt;code&gt;Nginx&lt;/code&gt; (nginx.io) as an ingress controller.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="brief-description">Brief description</h2>
 <p>In this part we should talk about:</p>
 <ol>
@@ -1802,8 +2460,7 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 <p>Ingress hosts that we will see are mapped to my <code>Cloudflare</code> domain(enkinineveh.space) secured with TLS certs generated using <code>cert-manager</code> and <code>letsencrypt</code>. One side note is that am using <a href="https://github.com/emberstack/kubernetes-reflector">reflector</a> to share TLS secret into other namespaces.</p>
 <p><code>Helm</code> is my favorite tool for deploying resources, <code>Helmfile</code> in case of deploying multiple charts, and <code>k9s</code> for navigating resources.</p>
 <p><code>Gitea</code> is my baby GitHub and <code>CNPG</code> is the default database operator.</p>
-<p>here is the repo of current project: <img loading="lazy" src="https://github.com/hamzabouissi/exam-architecture" alt="Github"  />
-</p>
+<p>here is the repo of current project: <img alt="Github" loading="lazy" src="https://github.com/hamzabouissi/exam-architecture"></p>
 <h2 id="introduction">Introduction</h2>
 <p>The processing phase is divided into 2 parts: the generation and the passing of the exam.</p>
 <p>The generation part is composed of 5 key elements: frontend UI, Minio, Kafka topics, Knative, Bedrock.</p>
@@ -1813,8 +2470,7 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 <p>Now to deploy a Kafka cluster, we need an operator to handle all the heavy and tedious tasks of managing the cluster, which will lead us into Strimzi.</p>
 <p>Strimzi offers a way to run an Apache Kafka cluster on Kubernetes in various deployment configurations, before deploying we must understand the different architecture Kafka comes with.</p>
 <p>Kafka have two deployment methods: kraft and zookeeper, the zookeeper method was creating a separate controller for managing metadata that can leads into burden or latency during heavy load environment, in the other side kraft managed to introduce a new method of handling the metadata within Kafka itself.</p>
-<p><img loading="lazy" src="https://images.ctfassets.net/gt6dp23g0g38/7gQZn9CnRAT60NeyYBYflL/b144fee6dad28ce97c3e91e6d09d1167/20230616-Diagram-KRaft.jpg" alt="kafka architecture"  />
-</p>
+<p><img alt="kafka architecture" loading="lazy" src="https://images.ctfassets.net/gt6dp23g0g38/7gQZn9CnRAT60NeyYBYflL/b144fee6dad28ce97c3e91e6d09d1167/20230616-Diagram-KRaft.jpg"></p>
 <p>From my experience, as we do not have that much of workload, deploying Kafka with zookeeper is sufficient, but for more up to date approach we will deploy the cluster with kraft mode</p>
 <p>Internally Kafka is composed of multiple components, which are: producer, consumer, broker, topics and partitions.</p>
 <p>To understand the components better, let’s take the generation phase as an example.</p>
@@ -2116,8 +2772,7 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>We check the pods, and here is the tenant deployed.</p>
-<p><img loading="lazy" src="/img/k9s-minio-tenant.png" alt="minio-tenant"  />
-</p>
+<p><img alt="minio-tenant" loading="lazy" src="/img/k9s-minio-tenant.png"></p>
 <p>To test things out Let’s forward the console port and access it.</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -2127,8 +2782,7 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"> kpf -n Minio-operator services/console 9090:9090
 </span></span></code></pre></td></tr></table>
 </div>
-</div><p><img loading="lazy" src="/img/minio-console.png" alt="minio-console"  />
-</p>
+</div><p><img alt="minio-console" loading="lazy" src="/img/minio-console.png"></p>
 <p>It asked for the JWT, which will be retrieved with:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -2139,8 +2793,7 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Cool, the tenant is working, and the bucket was created successfully</p>
-<p><img loading="lazy" src="/img/minio-bucket.png" alt="minio-bucket"  />
-</p>
+<p><img alt="minio-bucket" loading="lazy" src="/img/minio-bucket.png"></p>
 <p>But we’re missing the notification side when uploading an object. To add Kafka endpoint as the notification destination, we will use the configuration command: <strong>mc</strong></p>
 <p>Here is the configuration script:</p>
 <div class="highlight"><div class="chroma">
@@ -2252,7 +2905,7 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 </span></span></span><span class="line"><span class="cl"><span class="sd">              mc admin service restart dc-minio;
 </span></span></span><span class="line"><span class="cl"><span class="sd">              echo &#34;finish restart&#34;; sleep 10s;
 </span></span></span><span class="line"><span class="cl"><span class="sd">              mc event add --event &#34;put&#34; --prefix exams dc-minio/exams arn:minio:sqs::primary:kafka ;
-</span></span></span><span class="line"><span class="cl"><span class="sd">              echo &#34;setup event bridging&#34;;</span><span class="w">              
+</span></span></span><span class="line"><span class="cl"><span class="sd">              echo &#34;setup event bridging&#34;;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l">OnFailure</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
@@ -2266,11 +2919,9 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 <h2 id="knative--kafkasource">Knative &amp; KafkaSource</h2>
 <p>The Knative architecture holds multiple components, so we will give a general overview of the architecture without going into much details. Knative is divided into two major components: serving and eventing.</p>
 <p>The serving part handles managing serverless workload inside the cluster, here is the request flow of HTTP requests to an application which is running on Knative Serving.</p>
-<p><img loading="lazy" src="https://knative.dev/docs/serving/images/request-flow.png" alt="knative-request-flow"  />
-</p>
+<p><img alt="knative-request-flow" loading="lazy" src="https://knative.dev/docs/serving/images/request-flow.png"></p>
 <p>The eventing part is a collection of APIs that enable you to use an <a href="https://en.wikipedia.org/wiki/Event-driven_architecture">event-driven architecture</a> with your applications. This part handles event listening on brokers and delivering it to SINKS (knative services)</p>
-<p><img loading="lazy" src="https://knative.dev/docs/eventing/images/mesh.png" alt="knative-eventing"  />
-</p>
+<p><img alt="knative-eventing" loading="lazy" src="https://knative.dev/docs/eventing/images/mesh.png"></p>
 <p>As we finished explaining the core architecture, let’s move into installing Knative. The problem is that Knative doesn’t have a helm chart, so we will create one.</p>
 <p>First to install the Serving part, two yaml files are needed: <strong>serving-crds, serving-core</strong></p>
 <p>Let’s create a helm chart with:</p>
@@ -2320,8 +2971,7 @@ Kafka topics and difference of deploying between zookeeper and kraft. Create Min
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>After installation, the above components will be created, and an ingress-gateway for serving Knative services(functions).</p>
-<p><img loading="lazy" src="/img/knative-pods.png" alt="knative-pods-k9s"  />
-</p>
+<p><img alt="knative-pods-k9s" loading="lazy" src="/img/knative-pods.png"></p>
 <p>Each Knative service must have a DNS to map to, am using Cloudflare to manage my domain.
 We retrieve the Istio ingress gateway IP address</p>
 <div class="highlight"><div class="chroma">
@@ -2333,8 +2983,7 @@ We retrieve the Istio ingress gateway IP address</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>and create an A record referencing “kn-function” subdomain</p>
-<p><img loading="lazy" src="/img/cloudflare.png" alt="cloudflare image"  />
-</p>
+<p><img alt="cloudflare image" loading="lazy" src="/img/cloudflare.png"></p>
 <p>Then we tell knative to serve services with the new domain</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -2597,10 +3246,10 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-dockerfile" data-lang="dockerfile"><span class="line"><span class="cl"><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">FROM</span><span class="s"> python:3.10</span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.10</span><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">WORKDIR</span><span class="s"> /code</span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/code</span><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># </span><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">COPY</span> ./requirements.txt /code/requirements.txt<span class="err">
@@ -2880,11 +3529,9 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>we visit the host, and here is the Exam Generation UI</p>
-<p><img loading="lazy" src="/img/exam-generation-screen.png" alt="exam generation part"  />
-</p>
+<p><img alt="exam generation part" loading="lazy" src="/img/exam-generation-screen.png"></p>
 <p>We Upload another test file and get the green mark for successful upload.</p>
-<p><img loading="lazy" src="/img/exam-generation-green.png" alt="exam generation part"  />
-</p>
+<p><img alt="exam generation part" loading="lazy" src="/img/exam-generation-green.png"></p>
 <h2 id="summary">Summary</h2>
 <p>As we finished the generation part of the architecture, the next step will focus on adding &ldquo;taking-exam&rdquo; part.</p>
 ]]></content:encoded>
@@ -2894,8 +3541,9 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
       <link>//localhost:1313/posts/transform-aws-2/</link>
       <pubDate>Mon, 12 Aug 2024 14:40:04 +0100</pubDate>
       <guid>//localhost:1313/posts/transform-aws-2/</guid>
-      <description>Replacing services Phase In this article, we will pick this AWS architecture: “a serverless exam generator application for educator,” analyse it and find an open-source alternative solution for each service AWS provides, so if you are interested keep it up if you want to know more.
-To give a context of how architecture works: it starts with the educator reaching AWS Cognito to create an account either using social media account or a simple email and password.</description>
+      <description>&lt;h2 id=&#34;replacing-services-phase&#34;&gt;Replacing services Phase&lt;/h2&gt;
+&lt;p&gt;In this article, we will pick this AWS architecture: “a serverless exam generator application for educator,” analyse it and find an open-source alternative solution for each service AWS provides, so if you are interested keep it up if you want to know more.&lt;/p&gt;
+&lt;p&gt;To give a context of how architecture works: it starts with the educator reaching AWS Cognito to create an account either using social media account or a simple email and password. A successful account registration will subscribe the user into SNS to receive notifications.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="replacing-services-phase">Replacing services Phase</h2>
 <p>In this article, we will pick this AWS architecture: “a serverless exam generator application for educator,” analyse it and find an open-source alternative solution for each service AWS provides, so if you are interested keep it up if you want to know more.</p>
 <p>To give a context of how architecture works: it starts with the educator reaching AWS Cognito to create an account either using social media account or a simple email and password. A successful account registration will subscribe the user into SNS to receive notifications.</p>
@@ -2915,8 +3563,7 @@ To give a context of how architecture works: it starts with the educator reachin
 <li>SNS fully managed Pub/Sub service for A2A and A2P messaging, its core functionality in this architecture is sending emails, so I replaced it with Knative function and Mailgun and then used a MongoDB table(subscribers) for storing educator’s email after signing up.</li>
 </ul>
 <p>here is the final version of the architecture</p>
-<p><img loading="lazy" src="/img/exam-open-source.png" alt="open_source"  />
-</p>
+<p><img alt="open_source" loading="lazy" src="/img/exam-open-source.png"></p>
 <p>As we finish the task of replacing the services, we will move into the practical side of the implementation.</p>
 <p>The next articles will be divided into 3 parts: generation of the exam, passing the exam, authentication &amp; notification.</p>
 ]]></content:encoded>
@@ -2926,15 +3573,16 @@ To give a context of how architecture works: it starts with the educator reachin
       <link>//localhost:1313/posts/transform-aws-1/</link>
       <pubDate>Mon, 12 Aug 2024 14:32:49 +0100</pubDate>
       <guid>//localhost:1313/posts/transform-aws-1/</guid>
-      <description>Introduction Have you thought of creating an AWS architecture but with open-source projects?
-In these articles, we will challenge ourselves and transform this AWS architecture: a serverless exam generator application for educators.
-The solution enables educators to instantly create curriculum-aligned assessments with minimal effort. Students can take personalised quizzes and get immediate feedback on their performance.
-We will transform and replace each service varying from Cognito, Lambda, DynamoDb, fargate…etc with its open-source counterpart and host it, where?</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Have you thought of creating an AWS architecture but with open-source projects?&lt;/p&gt;
+&lt;p&gt;In these articles, we will challenge ourselves and transform this AWS architecture: a serverless exam generator application for educators.&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;the architecture diagram&#34; loading=&#34;lazy&#34; src=&#34;//localhost:1313/img/cloud-exam-architecture.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;The solution enables educators to instantly create curriculum-aligned assessments with minimal effort. Students can take personalised quizzes and get immediate feedback on their performance.&lt;/p&gt;
+&lt;p&gt;We will transform and replace each service varying from Cognito, Lambda, DynamoDb, fargate…etc with its open-source counterpart and host it, where? guessed right, on a Kubernetes cluster.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>Have you thought of creating an AWS architecture but with open-source projects?</p>
 <p>In these articles, we will challenge ourselves and transform this AWS architecture: a serverless exam generator application for educators.</p>
-<p><img loading="lazy" src="/img/cloud-exam-architecture.png" alt="the architecture diagram"  />
-</p>
+<p><img alt="the architecture diagram" loading="lazy" src="/img/cloud-exam-architecture.png"></p>
 <p>The solution enables educators to instantly create curriculum-aligned assessments with minimal effort. Students can take personalised quizzes and get immediate feedback on their performance.</p>
 <p>We will transform and replace each service varying from Cognito, Lambda, DynamoDb, fargate…etc with its open-source counterpart and host it, where? guessed right, on a Kubernetes cluster.</p>
 <p>If you liked the idea, keep it up for next articles.</p>
@@ -2951,8 +3599,9 @@ We will transform and replace each service varying from Cognito, Lambda, DynamoD
       <link>//localhost:1313/posts/guardians_of_hell/</link>
       <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
       <guid>//localhost:1313/posts/guardians_of_hell/</guid>
-      <description>Introduction It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.
-One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.&lt;/p&gt;
+&lt;p&gt;One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>It&rsquo;s been a nearly 3 months on my journey of learning kubernetes,&hellip;.</p>
 <p>One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</p>
@@ -2966,8 +3615,7 @@ FusionAuth
 Ory products</p>
 <p>My decision was to go with &ldquo;Ory open source products&rdquo;. I quite liked their approach of decoupling the functionalities into separate services (Hydra, Kratos, Oathkeeper) so even if you don&rsquo;t like one of their products, you can replace it with another project. The documentation was quite clear but needed some improvements, and the community was kind of active on both Slack and GitHub.</p>
 <p>here is a diagram of ory products</p>
-<p><img loading="lazy" src="/img/ory_arch.png" alt="ory_arch"  />
-</p>
+<p><img alt="ory_arch" loading="lazy" src="/img/ory_arch.png"></p>
 <h2 id="explain-different-terminologies">Explain Different Terminologies</h2>
 <p>I have built as a backend developer an authentication and authorization mechanism integrating google, github ..etc, but this time it was different because am delegating those features into services.</p>
 <p>I will be honest with you, learning the different terminologies (Identity management, authorization server, OIDC,Oauth2, policy as code, opaque vs jwt) wasn&rsquo;t that smooth, it took me a lot of time searching through articles and asking chatGPT, until I got my final summary that goes like:</p>
@@ -3008,8 +3656,7 @@ Ory products</p>
 <li>We need two different clients: one for <strong>internal communication M2M</strong>, the other for communication <strong>between backend and frontend</strong> involving the user but without consent as the frontend is a <strong>first-party app</strong>.</li>
 <li>One beneficial step will be <strong>passing the authorized user_id as a custom header</strong>. We may provide <strong>third parties the ability to create OAuth2 apps</strong>. For the moment, we create one for them, but we want the same seamless experience as other platforms, including consent, scopes, and allowing those apps to <strong>access the location service directly as it may become public</strong> in the future.</li>
 </ul>
-<p><img loading="lazy" src="/img/diagram.png" alt="project diagram"  />
-</p>
+<p><img alt="project diagram" loading="lazy" src="/img/diagram.png"></p>
 <h2 id="kratos--custom-ui">Kratos + Custom UI</h2>
 <h3 id="introduction-1">Introduction</h3>
 <p>At first, when a user tries to access a protected resource, they need to have an account or sign up for a new one and then get a token to send to the protected resource for authorizing their request.</p>
@@ -3469,8 +4116,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </div>
 </div><p>build the image and push it with a new tag: v2, then update the <strong>image value</strong> on kratos-ui chart and finally run <code>helmfile apply</code> to update the releases.</p>
 <p>Voila, you can see now Login/Register with Github.</p>
-<p><img loading="lazy" src="/img/kratos_login_github.png" alt="kratos_login_page_with_github_button"  />
-</p>
+<p><img alt="kratos_login_page_with_github_button" loading="lazy" src="/img/kratos_login_github.png"></p>
 <h2 id="hydra">Hydra</h2>
 <h3 id="introduction-2">Introduction</h3>
 <p>After identifying the user, he may need to access some of our protected resources, that&rsquo;s when he need to talk to an authorization server to give him token to access with it.</p>
@@ -3608,8 +4254,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Quick look at k9s, you will notice 3 pods two are active and the last one is terminated as it was initiazed by k8s job to run migration for db.
-<img loading="lazy" src="/img/k9s_hydra.png" alt="k9s pods"  />
-</p>
+<img alt="k9s pods" loading="lazy" src="/img/k9s_hydra.png"></p>
 <h3 id="creating-oauth2-clients">Creating Oauth2 Clients</h3>
 <p>Returning back to the project requirements, for the first use case, it enforces us into creating two different OAuth2 clients with a clean separation of concerns. That means, one for internal communication and the other one between the frontend and backend. In fact, each client must have minimal scopes and a targeted audience. For the second use case, we must create another client to handle connecting directly to the location service.</p>
 <p>Creating clients with Hydra is a straightforward action. We can use the admin service or the Hydra CLI if you have it installed. I wanted to change the method a bit, so I went for installing the CLI and had some tinkering with it.</p>
@@ -4125,8 +4770,10 @@ So here is the added code:</p>
       <link>//localhost:1313/posts/etcd_went_down/</link>
       <pubDate>Thu, 30 May 2024 11:12:57 +0100</pubDate>
       <guid>//localhost:1313/posts/etcd_went_down/</guid>
-      <description>Introduction with 1-Mistake On that shiny day, I got a project that required deploying a mongodb cluster, After a few searches, I found percona Operator, moved into installation section and copied the helm install command.
-After installing the required charts, I noticed that the pods weren&amp;rsquo;t in &amp;ldquo;running&amp;rdquo; state, so as a civilized kubernetes developer I ran &amp;ldquo;kubectl describe pod_name -n namespace&amp;rdquo;, and it turned out the problem was mongodb cluster requires either 3 or 5 nodes</description>
+      <description>&lt;h2 id=&#34;introduction-with-1-mistake&#34;&gt;Introduction with 1-Mistake&lt;/h2&gt;
+&lt;p&gt;On that shiny day, I got a project that required deploying a mongodb cluster,
+After a few searches, I found percona Operator, moved into installation section and copied the helm install command.&lt;/p&gt;
+&lt;p&gt;After installing the required charts, I noticed that the pods weren&amp;rsquo;t in &amp;ldquo;running&amp;rdquo; state, so as a civilized kubernetes developer I ran &amp;ldquo;kubectl describe pod_name -n namespace&amp;rdquo;, and it turned out the problem was mongodb cluster requires either 3 or 5 nodes&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction-with-1-mistake">Introduction with 1-Mistake</h2>
 <p>On that shiny day, I got a project that required deploying a mongodb cluster,
 After a few searches, I found percona Operator, moved into installation section and copied the helm install command.</p>
@@ -4269,44 +4916,44 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span><span class="lnt">37
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
-</span></span><span class="line"><span class="cl">    <span class="s">&#34;log&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="s">&#34;go.etcd.io/bbolt&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">// Open the BoltDB database file
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">db</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">bbolt</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;db&#34;</span><span class="p">,</span> <span class="mo">0600</span><span class="p">,</span> <span class="kc">nil</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// The key we want to delete
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">key</span> <span class="o">:=</span> <span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;920c1b791dddb17e&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// Update the database to delete the key from the &#34;members&#34; bucket
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">err</span> <span class="p">=</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Update</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">bbolt</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="c1">// Get the bucket
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">bucket</span> <span class="o">:=</span> <span class="nx">tx</span><span class="p">.</span><span class="nf">Bucket</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;members&#34;</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">bucket</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">bbolt</span><span class="p">.</span><span class="nx">ErrBucketNotFound</span>
-</span></span><span class="line"><span class="cl">        <span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">        <span class="c1">// Delete the key
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">return</span> <span class="nx">bucket</span><span class="p">.</span><span class="nf">Delete</span><span class="p">(</span><span class="nx">key</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">})</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;Could not delete key: %v&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Key deleted successfully&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></td></tr></table>
+<pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;log&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;go.etcd.io/bbolt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Open the BoltDB database file</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">bbolt</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;db&#34;</span><span class="p">,</span><span class="w"> </span><span class="mo">0600</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// The key we want to delete</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">key</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;920c1b791dddb17e&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Update the database to delete the key from the &#34;members&#34; bucket</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">err</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nf">Update</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">tx</span><span class="w"> </span><span class="o">*</span><span class="nx">bbolt</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// Get the bucket</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">bucket</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">tx</span><span class="p">.</span><span class="nf">Bucket</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;members&#34;</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">bucket</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">bbolt</span><span class="p">.</span><span class="nx">ErrBucketNotFound</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// Delete the key</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">bucket</span><span class="p">.</span><span class="nf">Delete</span><span class="p">(</span><span class="nx">key</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">})</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;Could not delete key: %v&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Key deleted successfully&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can reset the etcd node and then recover from the backup db</p>
 <div class="highlight"><div class="chroma">
@@ -4335,7 +4982,8 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
       <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
       <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
-      <description>Introduction Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</p>
 <h2 id="prerequisite">Prerequisite</h2>
@@ -4345,8 +4993,7 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </code></pre>
 <h2 id="create-pvc-for-nfs-server">Create PVC for NFS Server</h2>
 <p>With the help of Proxmox, I created a VM and configured it as an NFS server on 192.168.1.109. To use this server in our Kubernetes cluster, we need to create a StorageClass and then create a PVC that points to that class so pods can use it.</p>
-<p><img loading="lazy" src="/img/pvc.png" alt="pvc"  />
-</p>
+<p><img alt="pvc" loading="lazy" src="/img/pvc.png"></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt">1
@@ -4478,8 +5125,7 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  kubectl get pods -w
 </span></span></code></pre></td></tr></table>
 </div>
-</div><p><img loading="lazy" src="/img/k9s_screenshoot.png" alt="k9s pods"  />
-</p>
+</div><p><img alt="k9s pods" loading="lazy" src="/img/k9s_screenshoot.png"></p>
 <p>After all the pods are deployed, to access Gitea, we need to either open a port or create an ingress. Let&rsquo;s try the port-forwarding mechanism for now to test the app:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -4504,8 +5150,7 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>If everything works as expected, you should see an ingress-controller service with an IP address from your load-balancer (MetalLB) pool of IP addresses.</p>
-<p><img loading="lazy" src="/img/nginx_controller.png" alt="nginx-ingress service"  />
-</p>
+<p><img alt="nginx-ingress service" loading="lazy" src="/img/nginx_controller.png"></p>
 <p>Great, to expose Gitea, we will change the previous chart file &lsquo;values-gitea.yaml&rsquo; values:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -4741,8 +5386,7 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>once the the bind9 configured and it&rsquo;s working, we need to add the dns server ip address as an additional one, am using NetworkManager:</p>
-<p><img loading="lazy" src="/img/network_manager_dns.png" alt="network_manager"  />
-</p>
+<p><img alt="network_manager" loading="lazy" src="/img/network_manager_dns.png"></p>
 <h2 id="add-tls">Add TLS</h2>
 <p>Now, if we try to login into to the Gitea registry using the below command:</p>
 <div class="highlight"><div class="chroma">
@@ -4793,12 +5437,10 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can visit gitea.homelab.local and login to gitea registry without issues.</p>
-<p><img loading="lazy" src="/img/docker_login.png" alt="docker-login"  />
-</p>
+<p><img alt="docker-login" loading="lazy" src="/img/docker_login.png"></p>
 <h2 id="change-nginx-config-for-pushing-the-image">Change nginx config for pushing the image</h2>
 <p>We deployed Gitea with one main purpose in mind: pushing containers to the registry. However, if we try building a local image and pushing it, you may face an error saying: &ldquo;413 Request Entity Too Large&rdquo;!</p>
-<p><img loading="lazy" src="/img/docker_push_413.png" alt="413_push_image"  />
-</p>
+<p><img alt="413_push_image" loading="lazy" src="/img/docker_push_413.png"></p>
 <p>This is because by default Nginx imposes a limit of 1MB for uploading media files. To change that, we add an annotation for ingress to remove the limit:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -4820,8 +5462,7 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can push the image: gitlab.homelab.local/gitea_admin/app:latest</p>
-<p><img loading="lazy" src="/img/pushed_image.png" alt="pushed_image"  />
-</p>
+<p><img alt="pushed_image" loading="lazy" src="/img/pushed_image.png"></p>
 <p>if you have created another user instead of gitea_admin, you can replace it in the above command.</p>
 <h2 id="add-bind9-server-in-coredns">Add Bind9 Server in CoreDNS</h2>
 <p>We have done everything from deploying to adding TLS cert, but if we tried to create a deployment with the deployed image as an example</p>
@@ -4941,7 +5582,7 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
 </span></span></span><span class="line"><span class="cl"><span class="sd">        errors
 </span></span></span><span class="line"><span class="cl"><span class="sd">        cache 30
 </span></span></span><span class="line"><span class="cl"><span class="sd">        forward . 192.168.1.114
-</span></span></span><span class="line"><span class="cl"><span class="sd">    }  </span><span class="w">    
+</span></span></span><span class="line"><span class="cl"><span class="sd">    }  </span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>and for the CoreDNS to take effect, we will restart it with :</p>
@@ -4970,7 +5611,7 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
       <link>//localhost:1313/posts/hide-your-secrets/</link>
       <pubDate>Fri, 19 May 2023 16:14:49 +0100</pubDate>
       <guid>//localhost:1313/posts/hide-your-secrets/</guid>
-      <description>HIDING</description>
+      <description>&lt;p&gt;HIDING&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>HIDING</p>
 ]]></content:encoded>
     </item>
@@ -4979,16 +5620,16 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
       <link>//localhost:1313/posts/confession/</link>
       <pubDate>Tue, 25 Apr 2023 16:12:38 +0100</pubDate>
       <guid>//localhost:1313/posts/confession/</guid>
-      <description>(Knock on the door)
-(door opens)(some background noise of the company like people shatter or talk)
-Yeah, Come In
-Hey
-Hey
-Hey, my Junior friend, have a seat.
-Thanks
-It&amp;rsquo;s been 2 weeks since I assigned you the project, how it&amp;rsquo;s going?
-Good, I&amp;rsquo;m doing good, I just finished a few tasks and as you asked about my progress.
-So, can you tell me how much progress you have made?</description>
+      <description>&lt;p&gt;(Knock on the door)&lt;/p&gt;
+&lt;p&gt;(door opens)(some background noise of the company like people shatter or talk)&lt;/p&gt;
+&lt;p&gt;Yeah, Come In&lt;/p&gt;
+&lt;p&gt;Hey&lt;/p&gt;
+&lt;p&gt;Hey&lt;/p&gt;
+&lt;p&gt;Hey, my Junior friend, have a seat.&lt;/p&gt;
+&lt;p&gt;Thanks&lt;/p&gt;
+&lt;p&gt;It&amp;rsquo;s been 2 weeks since I assigned you the project, how it&amp;rsquo;s going?&lt;/p&gt;
+&lt;p&gt;Good, I&amp;rsquo;m doing good, I just finished a few tasks and as you asked about my progress.&lt;/p&gt;
+&lt;p&gt;So, can you tell me how much progress you have made?&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>(Knock on the door)</p>
 <p>(door opens)(some background noise of the company like people shatter or talk)</p>
 <p>Yeah, Come In</p>
@@ -5035,8 +5676,10 @@ So, can you tell me how much progress you have made?</description>
       <link>//localhost:1313/posts/stress-swallows-you/</link>
       <pubDate>Thu, 20 Apr 2023 15:36:32 +0100</pubDate>
       <guid>//localhost:1313/posts/stress-swallows-you/</guid>
-      <description>3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.
-So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database .</description>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;&lt;em&gt;3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database &lt;strong&gt;.&lt;/strong&gt; We have been using PostgresSQL V14, so we just need the same version on the dev environment.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<blockquote>
 <p><em>3 days passes, and I&rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.</em></p>
 </blockquote>
@@ -5085,8 +5728,9 @@ So at first, After I took the decision to use AWS copilot, I look at the task on
       <link>//localhost:1313/posts/determination/</link>
       <pubDate>Sun, 16 Apr 2023 16:05:46 +0100</pubDate>
       <guid>//localhost:1313/posts/determination/</guid>
-      <description>You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.
-So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused.</description>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;You know that feeling ?, when you&amp;rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&amp;rsquo;t work then your mind tells you &amp;ldquo;you need to change it a little bit&amp;rdquo;.&lt;br&gt;
+So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<blockquote>
 <p>You know that feeling ?, when you&rsquo;re escaping a bad documentation, instead crawling around searching for a solution, and you find a snippet of code on Stack Overflow or Reddit, after you copy and paste it, it doesn&rsquo;t work then your mind tells you &ldquo;you need to change it a little bit&rdquo;.<br>
 So you start changing the code to solve your problem, and guess what? A hell of a lot of new terminology and ideas enter your mind, and you start to get confused. Well, I Hamza Bou Issa am in that state of mind.</p>
@@ -5335,7 +5979,17 @@ Outputs:
       <link>//localhost:1313/posts/the-search/</link>
       <pubDate>Wed, 12 Apr 2023 15:28:36 +0100</pubDate>
       <guid>//localhost:1313/posts/the-search/</guid>
-      <description>Key points wake up with an email deciding not to go to the workspace read the task description and start searching lay on the bed again, thinking of ways to approach the problem get up and write his thoughts in his journal Search again and find copilot as a solution his alarm bumps for taking a walk It&amp;rsquo;s 8:35 AM, and the phone started vibrating with notifications, he used to receive the &amp;ldquo;Good Morning Babe&amp;rdquo; message from his girlfriend with a few newsletters emails, but this time, it was an email on his Zoho mail with the Subject: [JIRA] Yassine assigned DEV-550 to you</description>
+      <description>&lt;h2 id=&#34;key-points&#34;&gt;&lt;strong&gt;Key points&lt;/strong&gt;&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;wake up with an email&lt;/li&gt;
+&lt;li&gt;deciding not to go to the workspace&lt;/li&gt;
+&lt;li&gt;read the task description and start searching&lt;/li&gt;
+&lt;li&gt;lay on the bed again, thinking of ways to approach the problem&lt;/li&gt;
+&lt;li&gt;get up and write his thoughts in his journal&lt;/li&gt;
+&lt;li&gt;Search again and find copilot as a solution&lt;/li&gt;
+&lt;li&gt;his alarm bumps for taking a walk&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It&amp;rsquo;s 8:35 AM, and the phone started vibrating with notifications, he used to receive the &amp;ldquo;Good Morning Babe&amp;rdquo; message from his girlfriend with a few newsletters emails, but this time, it was an email on his Zoho mail with the Subject: &lt;strong&gt;[JIRA] Yassine assigned DEV-550 to you&lt;/strong&gt;&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="key-points"><strong>Key points</strong></h2>
 <ul>
 <li>wake up with an email</li>
@@ -5383,7 +6037,16 @@ Outputs:
       <link>//localhost:1313/posts/the-beginning/</link>
       <pubDate>Mon, 10 Apr 2023 15:25:26 +0100</pubDate>
       <guid>//localhost:1313/posts/the-beginning/</guid>
-      <description>Key Points: the boy is still an amateur, this is his first experience of him with DevOps the boy lacks some social skills the Startup CEO calls him he got the task of migrating the stack from GCP to AWS he returns confused and scared of not finding a solution then he goes back home, locks the room door and Lay on the bed imagining the way He was standing in front of the Nespresso machine, waiting for his daily caffeine fix, but his ears were inadvertently eavesdropping on the conversation of his two colleagues.</description>
+      <description>&lt;h3 id=&#34;key-points&#34;&gt;Key Points:&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;the boy is still an amateur, this is his first experience of him with DevOps&lt;/li&gt;
+&lt;li&gt;the boy lacks some social skills&lt;/li&gt;
+&lt;li&gt;the Startup CEO calls him&lt;/li&gt;
+&lt;li&gt;he got the task of migrating the stack from GCP to AWS&lt;/li&gt;
+&lt;li&gt;he returns confused and scared of not finding a solution&lt;/li&gt;
+&lt;li&gt;then he goes back home, locks the room door and Lay on the bed imagining the way&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;He was standing in front of the Nespresso machine, waiting for his daily caffeine fix, but his ears were inadvertently eavesdropping on the conversation of his two colleagues.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h3 id="key-points">Key Points:</h3>
 <ul>
 <li>the boy is still an amateur, this is his first experience of him with DevOps</li>
@@ -5441,9 +6104,10 @@ Outputs:
       <link>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</link>
       <pubDate>Tue, 10 Jan 2023 11:39:04 +0100</pubDate>
       <guid>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</guid>
-      <description>Introduction Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.
-With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.
-In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.</description>
+      <description>&lt;h3 id=&#34;introduction&#34;&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h3&gt;
+&lt;p&gt;Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.&lt;/p&gt;
+&lt;p&gt;With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.&lt;/p&gt;
+&lt;p&gt;In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h3 id="introduction"><strong>Introduction</strong></h3>
 <p>Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.</p>
 <p>With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.</p>
@@ -6207,7 +6871,7 @@ git push --set-upstream origin feature/test_preview
       Principal: &quot;events.amazonaws.com&quot;
       SourceArn: !GetAtt EventCloudFrontLambda.Arn
 </code></pre>
-<h3 id="test-updating-the-pull-request-nbspcode"><strong>Test Updating The Pull-request  Code</strong></h3>
+<h3 id="test-updating-the-pull-request-code"><strong>Test Updating The Pull-request  Code</strong></h3>
 <p>Let’s make some changes, if you cloned my repository you can change the index.json file</p>
 <p>and replace  “Hello World War 3!  with “Hello World Peace”</p>
 <p>and let’s wait for the builds to run successfully and recheck again our preview</p>

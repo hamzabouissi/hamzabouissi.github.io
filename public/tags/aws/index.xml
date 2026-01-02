@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.133.0</generator>
+    <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Tue, 10 Jan 2023 11:39:04 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/aws/index.xml" rel="self" type="application/rss+xml" />
@@ -18,9 +18,10 @@
       <link>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</link>
       <pubDate>Tue, 10 Jan 2023 11:39:04 +0100</pubDate>
       <guid>//localhost:1313/posts/deployment-preview-with-aws-cloudfront/</guid>
-      <description>Introduction Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.
-With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.
-In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.</description>
+      <description>&lt;h3 id=&#34;introduction&#34;&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h3&gt;
+&lt;p&gt;Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.&lt;/p&gt;
+&lt;p&gt;With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.&lt;/p&gt;
+&lt;p&gt;In this tutorial, you’ll learn about creating a CI pipeline with CodeBuild that gets triggered on every pull request creation or update, for every build we host react build folder on an S3 bucket and serve it with Cloudfront, finally after merging the pull request, we delete the build folder from S3.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h3 id="introduction"><strong>Introduction</strong></h3>
 <p>Deploy Previews allow you and your team to experience changes to any part of your site without having to publish them to production.</p>
 <p>With a deploy previews feature you and your teammates can see the changes of every pull request you make without merging it, this will reduce the burden of rolling back the environment when bugs happen as you can review the changes before.</p>
@@ -784,7 +785,7 @@ git push --set-upstream origin feature/test_preview
       Principal: &quot;events.amazonaws.com&quot;
       SourceArn: !GetAtt EventCloudFrontLambda.Arn
 </code></pre>
-<h3 id="test-updating-the-pull-request-nbspcode"><strong>Test Updating The Pull-request  Code</strong></h3>
+<h3 id="test-updating-the-pull-request-code"><strong>Test Updating The Pull-request  Code</strong></h3>
 <p>Let’s make some changes, if you cloned my repository you can change the index.json file</p>
 <p>and replace  “Hello World War 3!  with “Hello World Peace”</p>
 <p>and let’s wait for the builds to run successfully and recheck again our preview</p>

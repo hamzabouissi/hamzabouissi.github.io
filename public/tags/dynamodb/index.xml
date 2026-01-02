@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.133.0</generator>
+    <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 20 Apr 2023 15:36:32 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/dynamodb/index.xml" rel="self" type="application/rss+xml" />
@@ -18,8 +18,10 @@
       <link>//localhost:1313/posts/stress-swallows-you/</link>
       <pubDate>Thu, 20 Apr 2023 15:36:32 +0100</pubDate>
       <guid>//localhost:1313/posts/stress-swallows-you/</guid>
-      <description>3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.
-So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database .</description>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;&lt;em&gt;3 days passes, and I&amp;rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&amp;rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;So at first, After I took the decision to use AWS copilot, I look at the task on JIRA, analyzed it carefully and saw the need to deploy application dependencies first, one of the dependencies is the database &lt;strong&gt;.&lt;/strong&gt; We have been using PostgresSQL V14, so we just need the same version on the dev environment.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<blockquote>
 <p><em>3 days passes, and I&rsquo;m struggling on the same bug, Am I looking at the wrong side of the window, I don&rsquo;t know, I think the best way to understand is going back and examine every command line and line of code I wrote.</em></p>
 </blockquote>

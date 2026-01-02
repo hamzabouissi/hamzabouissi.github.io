@@ -2,11 +2,47 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>//localhost:1313/tags/ccm/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
     <loc>//localhost:1313/</loc>
-    <lastmod>2024-08-12T14:42:01+01:00</lastmod>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/cloud-agnostic/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/cloud-controller-manager/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/external-dns/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/haproxy/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/kubernetes/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/loadbalancer/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/loxilb/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/metacontroller/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/metlalb/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/posts/</loc>
-    <lastmod>2024-08-12T14:42:01+01:00</lastmod>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/tags/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
+  </url><url>
+    <loc>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</loc>
+    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/posts/transform-aws-5/</loc>
     <lastmod>2024-08-12T14:42:01+01:00</lastmod>
@@ -44,13 +80,7 @@
     <loc>//localhost:1313/tags/kratos/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
-    <loc>//localhost:1313/tags/kubernetes/</loc>
-    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
-  </url><url>
     <loc>//localhost:1313/tags/oathkeeper/</loc>
-    <lastmod>2024-07-01T11:39:57+01:00</lastmod>
-  </url><url>
-    <loc>//localhost:1313/tags/</loc>
     <lastmod>2024-07-01T11:39:57+01:00</lastmod>
   </url><url>
     <loc>//localhost:1313/tags/talos/</loc>

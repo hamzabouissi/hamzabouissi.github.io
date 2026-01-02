@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.133.0</generator>
+    <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 01 Jul 2024 11:39:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/talos/index.xml" rel="self" type="application/rss+xml" />
@@ -18,8 +18,9 @@
       <link>//localhost:1313/posts/guardians_of_hell/</link>
       <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
       <guid>//localhost:1313/posts/guardians_of_hell/</guid>
-      <description>Introduction It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.
-One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.&lt;/p&gt;
+&lt;p&gt;One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>It&rsquo;s been a nearly 3 months on my journey of learning kubernetes,&hellip;.</p>
 <p>One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</p>
@@ -33,8 +34,7 @@ FusionAuth
 Ory products</p>
 <p>My decision was to go with &ldquo;Ory open source products&rdquo;. I quite liked their approach of decoupling the functionalities into separate services (Hydra, Kratos, Oathkeeper) so even if you don&rsquo;t like one of their products, you can replace it with another project. The documentation was quite clear but needed some improvements, and the community was kind of active on both Slack and GitHub.</p>
 <p>here is a diagram of ory products</p>
-<p><img loading="lazy" src="/img/ory_arch.png" alt="ory_arch"  />
-</p>
+<p><img alt="ory_arch" loading="lazy" src="/img/ory_arch.png"></p>
 <h2 id="explain-different-terminologies">Explain Different Terminologies</h2>
 <p>I have built as a backend developer an authentication and authorization mechanism integrating google, github ..etc, but this time it was different because am delegating those features into services.</p>
 <p>I will be honest with you, learning the different terminologies (Identity management, authorization server, OIDC,Oauth2, policy as code, opaque vs jwt) wasn&rsquo;t that smooth, it took me a lot of time searching through articles and asking chatGPT, until I got my final summary that goes like:</p>
@@ -75,8 +75,7 @@ Ory products</p>
 <li>We need two different clients: one for <strong>internal communication M2M</strong>, the other for communication <strong>between backend and frontend</strong> involving the user but without consent as the frontend is a <strong>first-party app</strong>.</li>
 <li>One beneficial step will be <strong>passing the authorized user_id as a custom header</strong>. We may provide <strong>third parties the ability to create OAuth2 apps</strong>. For the moment, we create one for them, but we want the same seamless experience as other platforms, including consent, scopes, and allowing those apps to <strong>access the location service directly as it may become public</strong> in the future.</li>
 </ul>
-<p><img loading="lazy" src="/img/diagram.png" alt="project diagram"  />
-</p>
+<p><img alt="project diagram" loading="lazy" src="/img/diagram.png"></p>
 <h2 id="kratos--custom-ui">Kratos + Custom UI</h2>
 <h3 id="introduction-1">Introduction</h3>
 <p>At first, when a user tries to access a protected resource, they need to have an account or sign up for a new one and then get a token to send to the protected resource for authorizing their request.</p>
@@ -536,8 +535,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </div>
 </div><p>build the image and push it with a new tag: v2, then update the <strong>image value</strong> on kratos-ui chart and finally run <code>helmfile apply</code> to update the releases.</p>
 <p>Voila, you can see now Login/Register with Github.</p>
-<p><img loading="lazy" src="/img/kratos_login_github.png" alt="kratos_login_page_with_github_button"  />
-</p>
+<p><img alt="kratos_login_page_with_github_button" loading="lazy" src="/img/kratos_login_github.png"></p>
 <h2 id="hydra">Hydra</h2>
 <h3 id="introduction-2">Introduction</h3>
 <p>After identifying the user, he may need to access some of our protected resources, that&rsquo;s when he need to talk to an authorization server to give him token to access with it.</p>
@@ -675,8 +673,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Quick look at k9s, you will notice 3 pods two are active and the last one is terminated as it was initiazed by k8s job to run migration for db.
-<img loading="lazy" src="/img/k9s_hydra.png" alt="k9s pods"  />
-</p>
+<img alt="k9s pods" loading="lazy" src="/img/k9s_hydra.png"></p>
 <h3 id="creating-oauth2-clients">Creating Oauth2 Clients</h3>
 <p>Returning back to the project requirements, for the first use case, it enforces us into creating two different OAuth2 clients with a clean separation of concerns. That means, one for internal communication and the other one between the frontend and backend. In fact, each client must have minimal scopes and a targeted audience. For the second use case, we must create another client to handle connecting directly to the location service.</p>
 <p>Creating clients with Hydra is a straightforward action. We can use the admin service or the Hydra CLI if you have it installed. I wanted to change the method a bit, so I went for installing the CLI and had some tinkering with it.</p>
@@ -1192,8 +1189,10 @@ So here is the added code:</p>
       <link>//localhost:1313/posts/etcd_went_down/</link>
       <pubDate>Thu, 30 May 2024 11:12:57 +0100</pubDate>
       <guid>//localhost:1313/posts/etcd_went_down/</guid>
-      <description>Introduction with 1-Mistake On that shiny day, I got a project that required deploying a mongodb cluster, After a few searches, I found percona Operator, moved into installation section and copied the helm install command.
-After installing the required charts, I noticed that the pods weren&amp;rsquo;t in &amp;ldquo;running&amp;rdquo; state, so as a civilized kubernetes developer I ran &amp;ldquo;kubectl describe pod_name -n namespace&amp;rdquo;, and it turned out the problem was mongodb cluster requires either 3 or 5 nodes</description>
+      <description>&lt;h2 id=&#34;introduction-with-1-mistake&#34;&gt;Introduction with 1-Mistake&lt;/h2&gt;
+&lt;p&gt;On that shiny day, I got a project that required deploying a mongodb cluster,
+After a few searches, I found percona Operator, moved into installation section and copied the helm install command.&lt;/p&gt;
+&lt;p&gt;After installing the required charts, I noticed that the pods weren&amp;rsquo;t in &amp;ldquo;running&amp;rdquo; state, so as a civilized kubernetes developer I ran &amp;ldquo;kubectl describe pod_name -n namespace&amp;rdquo;, and it turned out the problem was mongodb cluster requires either 3 or 5 nodes&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction-with-1-mistake">Introduction with 1-Mistake</h2>
 <p>On that shiny day, I got a project that required deploying a mongodb cluster,
 After a few searches, I found percona Operator, moved into installation section and copied the helm install command.</p>
@@ -1336,44 +1335,44 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span><span class="lnt">37
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
-</span></span><span class="line"><span class="cl">    <span class="s">&#34;log&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="s">&#34;go.etcd.io/bbolt&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">// Open the BoltDB database file
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">db</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">bbolt</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;db&#34;</span><span class="p">,</span> <span class="mo">0600</span><span class="p">,</span> <span class="kc">nil</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// The key we want to delete
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">key</span> <span class="o">:=</span> <span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;920c1b791dddb17e&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// Update the database to delete the key from the &#34;members&#34; bucket
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">err</span> <span class="p">=</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Update</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">bbolt</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="c1">// Get the bucket
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">bucket</span> <span class="o">:=</span> <span class="nx">tx</span><span class="p">.</span><span class="nf">Bucket</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;members&#34;</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">bucket</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">bbolt</span><span class="p">.</span><span class="nx">ErrBucketNotFound</span>
-</span></span><span class="line"><span class="cl">        <span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">        <span class="c1">// Delete the key
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">return</span> <span class="nx">bucket</span><span class="p">.</span><span class="nf">Delete</span><span class="p">(</span><span class="nx">key</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">})</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;Could not delete key: %v&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Key deleted successfully&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></td></tr></table>
+<pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;log&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;go.etcd.io/bbolt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Open the BoltDB database file</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">bbolt</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;db&#34;</span><span class="p">,</span><span class="w"> </span><span class="mo">0600</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// The key we want to delete</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">key</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;920c1b791dddb17e&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Update the database to delete the key from the &#34;members&#34; bucket</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">err</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nf">Update</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">tx</span><span class="w"> </span><span class="o">*</span><span class="nx">bbolt</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// Get the bucket</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">bucket</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">tx</span><span class="p">.</span><span class="nf">Bucket</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;members&#34;</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">bucket</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">bbolt</span><span class="p">.</span><span class="nx">ErrBucketNotFound</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// Delete the key</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">bucket</span><span class="p">.</span><span class="nf">Delete</span><span class="p">(</span><span class="nx">key</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">})</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;Could not delete key: %v&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Key deleted successfully&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can reset the etcd node and then recover from the backup db</p>
 <div class="highlight"><div class="chroma">

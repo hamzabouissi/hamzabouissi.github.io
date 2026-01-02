@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.133.0</generator>
+    <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Sat, 20 May 2023 16:12:38 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/proxmox/index.xml" rel="self" type="application/rss+xml" />
@@ -18,7 +18,8 @@
       <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
       <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
-      <description>Introduction Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</p>
 <h2 id="prerequisite">Prerequisite</h2>
@@ -28,8 +29,7 @@
 </code></pre>
 <h2 id="create-pvc-for-nfs-server">Create PVC for NFS Server</h2>
 <p>With the help of Proxmox, I created a VM and configured it as an NFS server on 192.168.1.109. To use this server in our Kubernetes cluster, we need to create a StorageClass and then create a PVC that points to that class so pods can use it.</p>
-<p><img loading="lazy" src="/img/pvc.png" alt="pvc"  />
-</p>
+<p><img alt="pvc" loading="lazy" src="/img/pvc.png"></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt">1
@@ -161,8 +161,7 @@
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  kubectl get pods -w
 </span></span></code></pre></td></tr></table>
 </div>
-</div><p><img loading="lazy" src="/img/k9s_screenshoot.png" alt="k9s pods"  />
-</p>
+</div><p><img alt="k9s pods" loading="lazy" src="/img/k9s_screenshoot.png"></p>
 <p>After all the pods are deployed, to access Gitea, we need to either open a port or create an ingress. Let&rsquo;s try the port-forwarding mechanism for now to test the app:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -187,8 +186,7 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>If everything works as expected, you should see an ingress-controller service with an IP address from your load-balancer (MetalLB) pool of IP addresses.</p>
-<p><img loading="lazy" src="/img/nginx_controller.png" alt="nginx-ingress service"  />
-</p>
+<p><img alt="nginx-ingress service" loading="lazy" src="/img/nginx_controller.png"></p>
 <p>Great, to expose Gitea, we will change the previous chart file &lsquo;values-gitea.yaml&rsquo; values:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -424,8 +422,7 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>once the the bind9 configured and it&rsquo;s working, we need to add the dns server ip address as an additional one, am using NetworkManager:</p>
-<p><img loading="lazy" src="/img/network_manager_dns.png" alt="network_manager"  />
-</p>
+<p><img alt="network_manager" loading="lazy" src="/img/network_manager_dns.png"></p>
 <h2 id="add-tls">Add TLS</h2>
 <p>Now, if we try to login into to the Gitea registry using the below command:</p>
 <div class="highlight"><div class="chroma">
@@ -476,12 +473,10 @@
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can visit gitea.homelab.local and login to gitea registry without issues.</p>
-<p><img loading="lazy" src="/img/docker_login.png" alt="docker-login"  />
-</p>
+<p><img alt="docker-login" loading="lazy" src="/img/docker_login.png"></p>
 <h2 id="change-nginx-config-for-pushing-the-image">Change nginx config for pushing the image</h2>
 <p>We deployed Gitea with one main purpose in mind: pushing containers to the registry. However, if we try building a local image and pushing it, you may face an error saying: &ldquo;413 Request Entity Too Large&rdquo;!</p>
-<p><img loading="lazy" src="/img/docker_push_413.png" alt="413_push_image"  />
-</p>
+<p><img alt="413_push_image" loading="lazy" src="/img/docker_push_413.png"></p>
 <p>This is because by default Nginx imposes a limit of 1MB for uploading media files. To change that, we add an annotation for ingress to remove the limit:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -503,8 +498,7 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can push the image: gitlab.homelab.local/gitea_admin/app:latest</p>
-<p><img loading="lazy" src="/img/pushed_image.png" alt="pushed_image"  />
-</p>
+<p><img alt="pushed_image" loading="lazy" src="/img/pushed_image.png"></p>
 <p>if you have created another user instead of gitea_admin, you can replace it in the above command.</p>
 <h2 id="add-bind9-server-in-coredns">Add Bind9 Server in CoreDNS</h2>
 <p>We have done everything from deploying to adding TLS cert, but if we tried to create a deployment with the deployed image as an example</p>
@@ -624,7 +618,7 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
 </span></span></span><span class="line"><span class="cl"><span class="sd">        errors
 </span></span></span><span class="line"><span class="cl"><span class="sd">        cache 30
 </span></span></span><span class="line"><span class="cl"><span class="sd">        forward . 192.168.1.114
-</span></span></span><span class="line"><span class="cl"><span class="sd">    }  </span><span class="w">    
+</span></span></span><span class="line"><span class="cl"><span class="sd">    }  </span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>and for the CoreDNS to take effect, we will restart it with :</p>

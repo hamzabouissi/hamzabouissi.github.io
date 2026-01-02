@@ -9,7 +9,7 @@
       <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.133.0</generator>
+    <generator>Hugo -- 0.152.2</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 01 Jul 2024 11:39:57 +0100</lastBuildDate>
     <atom:link href="//localhost:1313/tags/helm/index.xml" rel="self" type="application/rss+xml" />
@@ -18,8 +18,9 @@
       <link>//localhost:1313/posts/guardians_of_hell/</link>
       <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
       <guid>//localhost:1313/posts/guardians_of_hell/</guid>
-      <description>Introduction It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.
-One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.&lt;/p&gt;
+&lt;p&gt;One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>It&rsquo;s been a nearly 3 months on my journey of learning kubernetes,&hellip;.</p>
 <p>One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.</p>
@@ -33,8 +34,7 @@ FusionAuth
 Ory products</p>
 <p>My decision was to go with &ldquo;Ory open source products&rdquo;. I quite liked their approach of decoupling the functionalities into separate services (Hydra, Kratos, Oathkeeper) so even if you don&rsquo;t like one of their products, you can replace it with another project. The documentation was quite clear but needed some improvements, and the community was kind of active on both Slack and GitHub.</p>
 <p>here is a diagram of ory products</p>
-<p><img loading="lazy" src="/img/ory_arch.png" alt="ory_arch"  />
-</p>
+<p><img alt="ory_arch" loading="lazy" src="/img/ory_arch.png"></p>
 <h2 id="explain-different-terminologies">Explain Different Terminologies</h2>
 <p>I have built as a backend developer an authentication and authorization mechanism integrating google, github ..etc, but this time it was different because am delegating those features into services.</p>
 <p>I will be honest with you, learning the different terminologies (Identity management, authorization server, OIDC,Oauth2, policy as code, opaque vs jwt) wasn&rsquo;t that smooth, it took me a lot of time searching through articles and asking chatGPT, until I got my final summary that goes like:</p>
@@ -75,8 +75,7 @@ Ory products</p>
 <li>We need two different clients: one for <strong>internal communication M2M</strong>, the other for communication <strong>between backend and frontend</strong> involving the user but without consent as the frontend is a <strong>first-party app</strong>.</li>
 <li>One beneficial step will be <strong>passing the authorized user_id as a custom header</strong>. We may provide <strong>third parties the ability to create OAuth2 apps</strong>. For the moment, we create one for them, but we want the same seamless experience as other platforms, including consent, scopes, and allowing those apps to <strong>access the location service directly as it may become public</strong> in the future.</li>
 </ul>
-<p><img loading="lazy" src="/img/diagram.png" alt="project diagram"  />
-</p>
+<p><img alt="project diagram" loading="lazy" src="/img/diagram.png"></p>
 <h2 id="kratos--custom-ui">Kratos + Custom UI</h2>
 <h3 id="introduction-1">Introduction</h3>
 <p>At first, when a user tries to access a protected resource, they need to have an account or sign up for a new one and then get a token to send to the protected resource for authorizing their request.</p>
@@ -536,8 +535,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </div>
 </div><p>build the image and push it with a new tag: v2, then update the <strong>image value</strong> on kratos-ui chart and finally run <code>helmfile apply</code> to update the releases.</p>
 <p>Voila, you can see now Login/Register with Github.</p>
-<p><img loading="lazy" src="/img/kratos_login_github.png" alt="kratos_login_page_with_github_button"  />
-</p>
+<p><img alt="kratos_login_page_with_github_button" loading="lazy" src="/img/kratos_login_github.png"></p>
 <h2 id="hydra">Hydra</h2>
 <h3 id="introduction-2">Introduction</h3>
 <p>After identifying the user, he may need to access some of our protected resources, that&rsquo;s when he need to talk to an authorization server to give him token to access with it.</p>
@@ -675,8 +673,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Quick look at k9s, you will notice 3 pods two are active and the last one is terminated as it was initiazed by k8s job to run migration for db.
-<img loading="lazy" src="/img/k9s_hydra.png" alt="k9s pods"  />
-</p>
+<img alt="k9s pods" loading="lazy" src="/img/k9s_hydra.png"></p>
 <h3 id="creating-oauth2-clients">Creating Oauth2 Clients</h3>
 <p>Returning back to the project requirements, for the first use case, it enforces us into creating two different OAuth2 clients with a clean separation of concerns. That means, one for internal communication and the other one between the frontend and backend. In fact, each client must have minimal scopes and a targeted audience. For the second use case, we must create another client to handle connecting directly to the location service.</p>
 <p>Creating clients with Hydra is a straightforward action. We can use the admin service or the Hydra CLI if you have it installed. I wanted to change the method a bit, so I went for installing the CLI and had some tinkering with it.</p>
@@ -1192,7 +1189,8 @@ So here is the added code:</p>
       <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
       <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
-      <description>Introduction Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.</p>
 <h2 id="prerequisite">Prerequisite</h2>
@@ -1202,8 +1200,7 @@ So here is the added code:</p>
 </code></pre>
 <h2 id="create-pvc-for-nfs-server">Create PVC for NFS Server</h2>
 <p>With the help of Proxmox, I created a VM and configured it as an NFS server on 192.168.1.109. To use this server in our Kubernetes cluster, we need to create a StorageClass and then create a PVC that points to that class so pods can use it.</p>
-<p><img loading="lazy" src="/img/pvc.png" alt="pvc"  />
-</p>
+<p><img alt="pvc" loading="lazy" src="/img/pvc.png"></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt">1
@@ -1335,8 +1332,7 @@ So here is the added code:</p>
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  kubectl get pods -w
 </span></span></code></pre></td></tr></table>
 </div>
-</div><p><img loading="lazy" src="/img/k9s_screenshoot.png" alt="k9s pods"  />
-</p>
+</div><p><img alt="k9s pods" loading="lazy" src="/img/k9s_screenshoot.png"></p>
 <p>After all the pods are deployed, to access Gitea, we need to either open a port or create an ingress. Let&rsquo;s try the port-forwarding mechanism for now to test the app:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1361,8 +1357,7 @@ So here is the added code:</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>If everything works as expected, you should see an ingress-controller service with an IP address from your load-balancer (MetalLB) pool of IP addresses.</p>
-<p><img loading="lazy" src="/img/nginx_controller.png" alt="nginx-ingress service"  />
-</p>
+<p><img alt="nginx-ingress service" loading="lazy" src="/img/nginx_controller.png"></p>
 <p>Great, to expose Gitea, we will change the previous chart file &lsquo;values-gitea.yaml&rsquo; values:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1598,8 +1593,7 @@ So here is the added code:</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>once the the bind9 configured and it&rsquo;s working, we need to add the dns server ip address as an additional one, am using NetworkManager:</p>
-<p><img loading="lazy" src="/img/network_manager_dns.png" alt="network_manager"  />
-</p>
+<p><img alt="network_manager" loading="lazy" src="/img/network_manager_dns.png"></p>
 <h2 id="add-tls">Add TLS</h2>
 <p>Now, if we try to login into to the Gitea registry using the below command:</p>
 <div class="highlight"><div class="chroma">
@@ -1650,12 +1644,10 @@ So here is the added code:</p>
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can visit gitea.homelab.local and login to gitea registry without issues.</p>
-<p><img loading="lazy" src="/img/docker_login.png" alt="docker-login"  />
-</p>
+<p><img alt="docker-login" loading="lazy" src="/img/docker_login.png"></p>
 <h2 id="change-nginx-config-for-pushing-the-image">Change nginx config for pushing the image</h2>
 <p>We deployed Gitea with one main purpose in mind: pushing containers to the registry. However, if we try building a local image and pushing it, you may face an error saying: &ldquo;413 Request Entity Too Large&rdquo;!</p>
-<p><img loading="lazy" src="/img/docker_push_413.png" alt="413_push_image"  />
-</p>
+<p><img alt="413_push_image" loading="lazy" src="/img/docker_push_413.png"></p>
 <p>This is because by default Nginx imposes a limit of 1MB for uploading media files. To change that, we add an annotation for ingress to remove the limit:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1677,8 +1669,7 @@ So here is the added code:</p>
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can push the image: gitlab.homelab.local/gitea_admin/app:latest</p>
-<p><img loading="lazy" src="/img/pushed_image.png" alt="pushed_image"  />
-</p>
+<p><img alt="pushed_image" loading="lazy" src="/img/pushed_image.png"></p>
 <p>if you have created another user instead of gitea_admin, you can replace it in the above command.</p>
 <h2 id="add-bind9-server-in-coredns">Add Bind9 Server in CoreDNS</h2>
 <p>We have done everything from deploying to adding TLS cert, but if we tried to create a deployment with the deployed image as an example</p>
@@ -1798,7 +1789,7 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
 </span></span></span><span class="line"><span class="cl"><span class="sd">        errors
 </span></span></span><span class="line"><span class="cl"><span class="sd">        cache 30
 </span></span></span><span class="line"><span class="cl"><span class="sd">        forward . 192.168.1.114
-</span></span></span><span class="line"><span class="cl"><span class="sd">    }  </span><span class="w">    
+</span></span></span><span class="line"><span class="cl"><span class="sd">    }  </span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>and for the CoreDNS to take effect, we will restart it with :</p>
