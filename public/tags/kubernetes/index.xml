@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Kubernetes on chown u&#43;r mind</title>
-    <link>hamzabouissi.github.io/tags/kubernetes/</link>
+    <link>//localhost:1313/tags/kubernetes/</link>
     <description>Recent content in Kubernetes on chown u&#43;r mind</description>
     <image>
       <title>chown u&#43;r mind</title>
-      <url>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
-      <link>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+      <url>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>//localhost:1313/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
     <generator>Hugo -- 0.162.1</generator>
     <language>en-us</language>
     <lastBuildDate>Wed, 08 Jul 2026 15:24:10 +0100</lastBuildDate>
-    <atom:link href="hamzabouissi.github.io/tags/kubernetes/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="//localhost:1313/tags/kubernetes/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Expose Api-Server with Dex and Traefik</title>
-      <link>hamzabouissi.github.io/posts/expose-api-server-rbac/</link>
+      <link>//localhost:1313/posts/expose-api-server-rbac/</link>
       <pubDate>Wed, 08 Jul 2026 15:24:10 +0100</pubDate>
-      <guid>hamzabouissi.github.io/posts/expose-api-server-rbac/</guid>
+      <guid>//localhost:1313/posts/expose-api-server-rbac/</guid>
       <description>&lt;h2 id=&#34;prologue&#34;&gt;&lt;strong&gt;Prologue&lt;/strong&gt;&lt;/h2&gt;
 &lt;p&gt;For most GlueOps clusters, &lt;code&gt;kube-apiserver&lt;/code&gt; sits behind a private network and the only way in is through our internal tooling. That works well until the moment a customer says: &lt;em&gt;“I just want to &lt;code&gt;kubectl get pods&lt;/code&gt; on my own cluster.”&lt;/em&gt;&lt;/p&gt;
 &lt;p&gt;At that point we have three bad options: ship them a long-lived &lt;code&gt;ServiceAccount&lt;/code&gt; token (a credential we can never really rotate), give them a shared admin &lt;code&gt;kubeconfig&lt;/code&gt; (auditing nightmare), or ask them to VPN in every time (friction we don’t want to charge them for).&lt;/p&gt;</description>
@@ -542,9 +542,9 @@
     </item>
     <item>
       <title>The Tale of Kubernetes Loadbalancer &#34;Service&#34; In The Agnostic World of Clouds</title>
-      <link>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</link>
+      <link>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</link>
       <pubDate>Wed, 31 Dec 2025 00:00:00 +0100</pubDate>
-      <guid>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</guid>
+      <guid>//localhost:1313/posts/cloud_agnostic_lb_for_kubernetes/</guid>
       <description>&lt;h2 id=&#34;prologue&#34;&gt;&lt;strong&gt;Prologue&lt;/strong&gt;&lt;/h2&gt;
 &lt;p&gt;One of the key features for the “GlueOps Platform” to work is installing a LoadBalancer, and because we’re using GlueKube to create kubernetes cluster in a cloud agnostic way, getting the LoadBalancer to work isn’t that easy, as each cloud providers requires different setup, especially for providers with no CCM or in an on-prem installation.&lt;/p&gt;
 &lt;h2 id=&#34;the-birth-of-the-loadbalancer-in-the-kingdom-of-kubernetes&#34;&gt;&lt;strong&gt;The Birth of the LoadBalancer in the Kingdom of Kubernetes&lt;/strong&gt;&lt;/h2&gt;
@@ -1188,9 +1188,9 @@ Metacontroller: <a href="https://metacontroller.github.io/metacontroller/intro.h
     </item>
     <item>
       <title>Guardians of hell: hydra kratos oathkeeper</title>
-      <link>hamzabouissi.github.io/posts/guardians_of_hell/</link>
+      <link>//localhost:1313/posts/guardians_of_hell/</link>
       <pubDate>Mon, 01 Jul 2024 11:39:57 +0100</pubDate>
-      <guid>hamzabouissi.github.io/posts/guardians_of_hell/</guid>
+      <guid>//localhost:1313/posts/guardians_of_hell/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;It&amp;rsquo;s been a nearly 3 months on my journey of learning kubernetes,&amp;hellip;.&lt;/p&gt;
 &lt;p&gt;One day I came across an architecture of AWS that includes AWS Cognito and ECS, if you have worked with AWS before, you would know that Cognito is a hosted authentication service which handles OAuth2/OIDC for you, To put it in a simpler way, it handles  authentication and authorization to your AWS resources and provides different techniques to authenticate variying from Github, Google, etc.&lt;/p&gt;</description>
@@ -2359,9 +2359,9 @@ So here is the added code:</p>
     </item>
     <item>
       <title>Oops...Etcd went down</title>
-      <link>hamzabouissi.github.io/posts/etcd_went_down/</link>
+      <link>//localhost:1313/posts/etcd_went_down/</link>
       <pubDate>Thu, 30 May 2024 11:12:57 +0100</pubDate>
-      <guid>hamzabouissi.github.io/posts/etcd_went_down/</guid>
+      <guid>//localhost:1313/posts/etcd_went_down/</guid>
       <description>&lt;h2 id=&#34;introduction-with-1-mistake&#34;&gt;Introduction with 1-Mistake&lt;/h2&gt;
 &lt;p&gt;On that shiny day, I got a project that required deploying a mongodb cluster,
 After a few searches, I found percona Operator, moved into installation section and copied the helm install command.&lt;/p&gt;
@@ -2571,9 +2571,9 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
     </item>
     <item>
       <title>Deploying gitea into kubernetes with custom domain</title>
-      <link>hamzabouissi.github.io/posts/deploy-gitea-k8s/</link>
+      <link>//localhost:1313/posts/deploy-gitea-k8s/</link>
       <pubDate>Sat, 20 May 2023 16:12:38 +0100</pubDate>
-      <guid>hamzabouissi.github.io/posts/deploy-gitea-k8s/</guid>
+      <guid>//localhost:1313/posts/deploy-gitea-k8s/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;Hello, lately I have been trying to deploy a custom Docker image into my local Kubernetes cluster. It turned out I needed to host my Docker image on a container registry, either Docker Hub, which is not suitable for my use case, or deploy and use a local registry. During my research, I found Gitea, which I liked as it allows me to deploy all my projects on it and also host the containers.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
