@@ -9,7 +9,7 @@
       <url>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.152.2</generator>
+    <generator>Hugo -- 0.162.1</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 01 Jul 2024 11:39:57 +0100</lastBuildDate>
     <atom:link href="hamzabouissi.github.io/tags/helm/index.xml" rel="self" type="application/rss+xml" />
@@ -294,7 +294,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">helmDefaults</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">createNamespace</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">releases</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">releases</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kratos-ui</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">./kratos-ui/charts</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">auth</span><span class="w">
@@ -595,7 +595,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">dsn</span><span class="p">:</span><span class="w"> </span><span class="l">postgres://hydra:hydra@cluster-pg-rw.cnpg-system:5432/hydra</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">automigration</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">automigration</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
@@ -696,8 +696,8 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client --name frontend-backend-client --audience backend-service<span class="se">\ </span>--endpoint http://localhost:4445 --grant-type authorization_code,refresh_token <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid --skip-consent <span class="nb">true</span> --skip-logout-consent <span class="nb">true</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --token-endpoint-auth-method client_secret_post
+</span></span></span><span class="line"><span class="cl">    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid --skip-consent <span class="nb">true</span> --skip-logout-consent <span class="nb">true</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --token-endpoint-auth-method client_secret_post
 </span></span></code></pre></td></tr></table>
 </div>
 </div><div class="highlight"><div class="chroma">
@@ -707,7 +707,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client  --name internal-communication --audience internal-service --endpoint http://localhost:4445 --grant-type client_credentials <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --token-endpoint-auth-method client_secret_basic --scope offline_access,openid,location:read
+</span></span></span><span class="line"><span class="cl">     --token-endpoint-auth-method client_secret_basic --scope offline_access,openid,location:read
 </span></span></code></pre></td></tr></table>
 </div>
 </div><div class="highlight"><div class="chroma">
@@ -718,8 +718,8 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client --name third-party --audience backend-service<span class="se">\ </span>--endpoint http://localhost:4445 --grant-type authorization_code,refresh_token <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid,location:read<span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --token-endpoint-auth-method client_secret_post
+</span></span></span><span class="line"><span class="cl">    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid,location:read<span class="se">\
+</span></span></span><span class="line"><span class="cl">    --token-endpoint-auth-method client_secret_post
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>The first client will settle between the frontend and backend. After the user registers, they don&rsquo;t need to approve a certain consent because they are dealing with their own data through our trusted app. Then an authorization code will be sent to the redirect URL in the frontend and it will be sent back to the backend for access and refresh token exchange.</p>
@@ -937,7 +937,7 @@ So here is the added code:</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="c"># Global configuration file oathkeeper.yml</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">mutators</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">mutators</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">header</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c"># Set enabled to true if the authenticator should be enabled and false to disable the authenticator. Defaults to false.</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
@@ -1087,7 +1087,7 @@ So here is the added code:</p>
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;handler&#34;</span><span class="p">:</span><span class="s2">&#34;json&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>}<span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">]</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span>}<span class="w">
+</span></span></span><span class="line"><span class="cl">}<span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>I will not show you how to install Istio because this is outside the article&rsquo;s scope, but you can follow their documentation; it is easy and comprehensive.</p>
@@ -1211,10 +1211,10 @@ So here is the added code:</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --create-namespace <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --namespace nfs-provisioner <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --set nfs.server<span class="o">=</span>192.168.1.109 <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --set nfs.path<span class="o">=</span>/srv/public/nfs
+</span></span></span><span class="line"><span class="cl">  --create-namespace <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --namespace nfs-provisioner <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --set nfs.server<span class="o">=</span>192.168.1.109 <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --set nfs.path<span class="o">=</span>/srv/public/nfs
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Then we create a PVC, linking it to the storageClassName:</p>
@@ -1237,13 +1237,13 @@ So here is the added code:</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PersistentVolumeClaim</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PersistentVolumeClaim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-test</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">storage.k8s.io/name</span><span class="p">:</span><span class="w"> </span><span class="l">nfs</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">storage.k8s.io/part-of</span><span class="p">:</span><span class="w"> </span><span class="l">kubernetes-complete-reference</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">accessModes</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">ReadWriteMany</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">storageClassName</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-client</span><span class="w">
@@ -1268,10 +1268,10 @@ So here is the added code:</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Pod</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">task-pv-pod</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">task-pv-storage</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">persistentVolumeClaim</span><span class="p">:</span><span class="w">
@@ -1300,10 +1300,10 @@ So here is the added code:</p>
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">claimName</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-test</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">postgresql-ha</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">postgresql-ha</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">postgresql</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">postgresql</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
@@ -1624,8 +1624,8 @@ So here is the added code:</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl create secret tls gitea-secret <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --key gitea.homelab.local-key.pem <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --cert gitea.homelab.local.pem
+</span></span></span><span class="line"><span class="cl">    --key gitea.homelab.local-key.pem <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --cert gitea.homelab.local.pem
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Finally, we append the gitea-secret into the ingress by changing the gitea-values.yaml file:</p>
@@ -1699,13 +1699,13 @@ So here is the added code:</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">apps/v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Deployment</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">apps/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Deployment</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">app-deployment</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
@@ -1765,11 +1765,11 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ConfigMap</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ConfigMap</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">coredns</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">kube-system</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">data</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">data</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">Corefile</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
 </span></span></span><span class="line"><span class="cl"><span class="sd">    .:53 {
 </span></span></span><span class="line"><span class="cl"><span class="sd">        errors

@@ -1,0 +1,85 @@
+- name: Generate Kubeadm configuration
+  ansible.builtin.template:
+    src: "kubeadm-stacked-config.yaml.j2"
+    dest: "{{ kubeadm_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: rotate-certs-with-config
+
+- name: Generate Authentication Configuration
+  ansible.builtin.template:
+    src: "authentication-configuration.yaml.j2"
+    dest: "/etc/kubernetes/pki/authentication-config.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: rotate-certs-with-config
+
+- name: Remove existing API server cert files to force regeneration from config
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/kubernetes/pki/apiserver.crt
+    - /etc/kubernetes/pki/apiserver.key
+  tags: rotate-certs-with-config
+
+- name: Regenerate API server certificate from kubeadm config
+  ansible.builtin.command: "kubeadm init phase certs apiserver --config {{ kubeadm_config_file }}"
+  tags: rotate-certs-with-config
+
+- name: Upload kubeadm ClusterConfiguration to kubeadm-config ConfigMap
+  ansible.builtin.command: "kubeadm init phase upload-config kubeadm --config {{ kubeadm_config_file }}"
+  when: inventory_hostname == groups['masters'][0]
+  tags: rotate-certs-with-config
+
+- name: Regenerate API server static pod manifest from kubeadm config
+  ansible.builtin.command: "kubeadm init phase control-plane apiserver --config {{ kubeadm_config_file }}"
+  tags: rotate-certs-with-config
+
+- name: Ensure temporary manifest directory exists
+  ansible.builtin.file:
+    path: /opt/kubernetes/manifests
+    state: directory
+    mode: "0755"
+  tags: rotate-certs-with-config
+
+- name: Force restart of kube-apiserver static pod
+  ansible.builtin.command: "mv /etc/kubernetes/manifests/kube-apiserver.yaml /opt/kubernetes/manifests/kube-apiserver.yaml"
+  tags: rotate-certs-with-config
+
+- name: Wait until old kube-apiserver container is removed
+  ansible.builtin.shell: "ctr -n k8s.io containers list | grep kube-apiserver || true"
+  register: old_apiserver_container
+  retries: 18
+  delay: 5
+  until: old_apiserver_container.stdout == ""
+  changed_when: false
+  tags: rotate-certs-with-config
+
+- name: Restore kube-apiserver manifest to recreate static pod
+  ansible.builtin.command: "mv /opt/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/manifests/kube-apiserver.yaml"
+  args:
+    removes: /opt/kubernetes/manifests/kube-apiserver.yaml
+  tags: rotate-certs-with-config
+
+- name: Verify kube-apiserver static pod container is recreated
+  ansible.builtin.shell: "ctr -n k8s.io containers list | grep kube-apiserver || true"
+  register: new_apiserver_container
+  retries: 18
+  delay: 5
+  until: new_apiserver_container.stdout != ""
+  changed_when: false
+  tags: rotate-certs-with-config
+
+- name: Wait for API server to become ready
+  ansible.builtin.shell: |
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl get --raw='/readyz'
+  register: apiserver_ready
+  retries: 18
+  delay: 10
+  until: apiserver_ready.rc == 0 and ('ok' in apiserver_ready.stdout)
+  changed_when: false
+  tags: rotate-certs-with-config

@@ -9,10 +9,537 @@
       <url>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
       <link>hamzabouissi.github.io/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
     </image>
-    <generator>Hugo -- 0.152.2</generator>
+    <generator>Hugo -- 0.162.1</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 31 Dec 2025 00:00:00 +0100</lastBuildDate>
+    <lastBuildDate>Wed, 08 Jul 2026 15:24:10 +0100</lastBuildDate>
     <atom:link href="hamzabouissi.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Expose Api-Server with Dex and Traefik</title>
+      <link>hamzabouissi.github.io/posts/expose-api-server-rbac/</link>
+      <pubDate>Wed, 08 Jul 2026 15:24:10 +0100</pubDate>
+      <guid>hamzabouissi.github.io/posts/expose-api-server-rbac/</guid>
+      <description>&lt;h2 id=&#34;prologue&#34;&gt;&lt;strong&gt;Prologue&lt;/strong&gt;&lt;/h2&gt;
+&lt;p&gt;For most GlueOps clusters, &lt;code&gt;kube-apiserver&lt;/code&gt; sits behind a private network and the only way in is through our internal tooling. That works well until the moment a customer says: &lt;em&gt;“I just want to &lt;code&gt;kubectl get pods&lt;/code&gt; on my own cluster.”&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;At that point we have three bad options: ship them a long-lived &lt;code&gt;ServiceAccount&lt;/code&gt; token (a credential we can never really rotate), give them a shared admin &lt;code&gt;kubeconfig&lt;/code&gt; (auditing nightmare), or ask them to VPN in every time (friction we don’t want to charge them for).&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<h2 id="prologue"><strong>Prologue</strong></h2>
+<p>For most GlueOps clusters, <code>kube-apiserver</code> sits behind a private network and the only way in is through our internal tooling. That works well until the moment a customer says: <em>“I just want to <code>kubectl get pods</code> on my own cluster.”</em></p>
+<p>At that point we have three bad options: ship them a long-lived <code>ServiceAccount</code> token (a credential we can never really rotate), give them a shared admin <code>kubeconfig</code> (auditing nightmare), or ask them to VPN in every time (friction we don’t want to charge them for).</p>
+<p>What we actually want is boring and correct: <strong>the customer logs in with their existing SSO identity, <code>kubectl</code> gets a short-lived token, <code>kube-apiserver</code> validates it, and RBAC decides what they’re allowed to touch.</strong> No shared secrets, no long-lived credentials, and the public surface is small enough that we can sleep at night.</p>
+<p>This post walks through how we wired that up on top of our existing GlueOps stack — <strong>Traefik</strong> as the ingress on the edge, <strong>Dex</strong> as the OIDC provider federating the customer’s identity, and <strong>kubeadm</strong> driving the api-server configuration. Every piece is boring on its own; the interesting part is how they fit together.</p>
+<h2 id="opening-the-gate-a-tcp-passthrough-to-kube-apiserver"><strong>Opening the Gate: A TCP Passthrough to kube-apiserver</strong></h2>
+<p>The first instinct when exposing anything through Traefik is to reach for an <code>IngressRoute</code> and let Traefik terminate TLS for us. That instinct is wrong here.</p>
+<p><code>kube-apiserver</code> speaks TLS with its own certificate — the same certificate that <code>kubectl</code>, kubelets and every controller in the cluster already trust. If Traefik terminated TLS and re-encrypted, we’d either have to teach every client to trust Traefik’s cert, or run api-server without TLS behind the proxy. Both are worse than what we started with.</p>
+<p>The right primitive is <code>IngressRouteTCP</code> with <code>tls.passthrough: true</code>. Traefik becomes a dumb L4 forwarder that routes by SNI and hands the raw TLS stream to <code>kube-apiserver</code>. The api-server’s own certificate remains the one the client validates, and nothing about the client-side trust story changes.</p>
+<p>Before we open the gate, we bolt on an IP allowlist. Even though every request must still authenticate through OIDC and pass RBAC, we don’t want the public internet spraying login attempts and CVE probes at the api-server. <code>MiddlewareTCP</code> gives us a simple source-range filter:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">traefik.io/v1alpha1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">MiddlewareTCP</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kube-apiserver-ip-allowlist</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">traefik</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ipAllowList</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">sourceRange</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s2">&#34;x.x.x.x/32&#34;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Replace <code>x.x.x.x/32</code> with whatever CIDRs the customer actually connects from — you can list as many as you need. Then the <code>IngressRouteTCP</code> that ties it all together:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">traefik.io/v1alpha1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">IngressRouteTCP</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kube-apiserver-passthrough</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">traefik</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">entryPoints</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">websecure</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">routes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">match</span><span class="p">:</span><span class="w"> </span><span class="l">HostSNI(`kube-api.domain`)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">middlewares</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kube-apiserver-ip-allowlist</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">traefik</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kube-apiserver-proxy</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="m">443</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tls</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">passthrough</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nn">---</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Service</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kube-apiserver-proxy</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">traefik</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">https</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="m">443</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l">TCP</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">targetPort</span><span class="p">:</span><span class="w"> </span><span class="m">443</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Two subtle points worth calling out:</p>
+<ol>
+<li>The <code>HostSNI</code> match works precisely because we set <code>tls.passthrough: true</code>. Traefik peeks at the ClientHello, sees the SNI, and routes accordingly — it never breaks the TLS envelope open.</li>
+<li>The <code>Service</code> in this snippet has no selector. In our clusters we point it at the api-server’s endpoints; if you’re running vanilla kubeadm, you can either add a selector matching the api-server pods or manage the <code>Endpoints</code>/<code>EndpointSlice</code> object directly.</li>
+</ol>
+<p>At this point, the door is open — but there’s nothing behind it yet that knows how to check IDs.</p>
+<h2 id="a-herald-at-the-door-registering-kubectl-in-dex"><strong>A Herald at the Door: Registering kubectl in Dex</strong></h2>
+<p>Dex is already the OIDC broker for the rest of our platform (Argo CD, Grafana, Pomerium, etc.). All we need to do is teach it that <code>kubectl</code> is a legitimate client that will come knocking.</p>
+<p>In our Dex helm values:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">staticClients</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">kubectl</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kubectl</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">public</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The <code>public: true</code> bit is the important one. <code>kubectl</code> is a native binary running on the user’s laptop — there’s no server-side place to safely store a client secret. Marking it public tells Dex to accept the <strong>OAuth 2.0 device-code flow</strong> for this client and skip the client secret check. That’s the same flow the <a href="https://github.com/int128/kubelogin"><code>kubelogin</code></a> plugin uses: pop open a browser, complete the login, and drop a short-lived ID token back into <code>kubectl</code>’s credential exec.</p>
+<p>No callback URLs, no client secret to rotate — the herald is announced.</p>
+<h2 id="teaching-the-guard-to-read-the-heralds-seal-kubeadm-authentication-config"><strong>Teaching the Guard to Read the Herald’s Seal: Kubeadm Authentication Config</strong></h2>
+<p>The api-server now needs two things: it has to be reachable at the public hostname, and it has to know how to validate the JWTs Dex hands out.</p>
+<h3 id="the-certificate-san">The certificate SAN</h3>
+<p>Since we’re about to serve TLS on <code>kube-api.domain</code>, the api-server’s serving certificate must include that name. Otherwise every <code>kubectl</code> call will fail the SNI/hostname check before authentication even runs. In the kubeadm <code>ClusterConfiguration</code>, we extend <code>certSANs</code>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiServer</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">certSANs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">kube-api.domain</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="the-authenticationconfiguration">The AuthenticationConfiguration</h3>
+<p>Historically you’d configure OIDC on the api-server with a pile of <code>--oidc-*</code> CLI flags. Starting from <code>AuthenticationConfiguration</code> (beta since 1.30), Kubernetes lets you point the api-server at a single YAML file that declares one or more JWT issuers, along with claim mappings and validation rules. We use it because it composes better with our GitOps flow and because the CEL validation rules let us enforce things like <code>email_verified</code> without writing a webhook.</p>
+<p>Here’s the config we drop in — parameterized because Ansible fills in <code>domain_name</code> per environment:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">apiserver.config.k8s.io/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">AuthenticationConfiguration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">jwt</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">issuer</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l">https://dex.{{ domain_name }}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">audiences</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="l">kubectl</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">claimMappings</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">username</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">claim</span><span class="p">:</span><span class="w"> </span><span class="l">email</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;oidc:&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">groups</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">claim</span><span class="p">:</span><span class="w"> </span><span class="l">groups</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;oidc:&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">claimValidationRules</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">expression</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;has(claims.email_verified) &amp;&amp; claims.email_verified == true&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;Access denied: Your email address must be verified in Dex.&#34;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>A few things worth noting:</p>
+<ul>
+<li><code>audiences: [kubectl]</code> mirrors the <code>client_id</code> we registered in Dex. If a token was issued for another client — say, Argo CD — the api-server will reject it. This scoping matters.</li>
+<li>The <code>oidc:</code> prefix on <code>username</code> and <code>groups</code> is what shows up in RBAC bindings later. It also prevents any collision with local ServiceAccount or system group names.</li>
+<li>The CEL <code>claimValidationRules</code> cleanly refuses tokens where <code>email_verified</code> isn’t <code>true</code>. If someone can register a fresh account in your IdP and hit the api-server before they’ve confirmed their email, that’s a real hole — this closes it.</li>
+</ul>
+<h3 id="wiring-the-file-into-the-api-server">Wiring the file into the api-server</h3>
+<p>There’s a small operational catch: <code>kube-apiserver</code> runs as a static pod, and it can only read files that live inside a directory that’s already mounted into the pod. The two directories kubeadm mounts by default are <code>/etc/kubernetes/pki</code> and <code>/etc/kubernetes</code>. To keep the config close to the other trust material and avoid touching the static-pod manifest by hand, we drop the file at <code>/etc/kubernetes/pki/authentication-config.yaml</code>.</p>
+<p>Then we tell the api-server about it via an <code>extraArgs</code> entry in the kubeadm config:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiServer</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">extraArgs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;authentication-config&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;/etc/kubernetes/pki/authentication-config.yaml&#34;</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>On a fresh <code>kubeadm init</code>, that’s all you need — the resulting static-pod manifest will already include the flag and the mount. On an existing cluster, the config change alone isn’t enough; we still need the api-server certificate to be regenerated so the new SAN takes effect. That’s the next section.</p>
+<h2 id="the-ceremony-of-rotation-reissuing-certs-on-an-existing-cluster"><strong>The Ceremony of Rotation: Reissuing Certs on an Existing Cluster</strong></h2>
+<p>If you’re standing up a brand-new cluster, skip this section. <code>kubeadm init</code> will honor the new <code>certSANs</code> and <code>extraArgs</code> on the first pass.</p>
+<p>If you’re modifying a cluster that’s already running — which is the usual case for us — kubeadm won’t retroactively add SANs to a cert that already exists on disk. You have to force a regeneration. Because we use Ansible to manage our kubeadm clusters, we wrapped the whole ceremony in a role. The full task file lives here: <a href="https://github.com/GlueOps/GlueKube/blob/main/ansible/roles/master/tasks/rotate-certs-with-config.yaml">rotate-certs-with-config.yaml</a>. The shape of it is:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Generate Kubeadm configuration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.template</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">src</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;kubeadm-stacked-config.yaml.j2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">dest</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;{{ kubeadm_config_file }}&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">owner</span><span class="p">:</span><span class="w"> </span><span class="l">root</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l">root</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;0644&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Generate Authentication Configuration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.template</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">src</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;authentication-configuration.yaml.j2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">dest</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;/etc/kubernetes/pki/authentication-config.yaml&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">owner</span><span class="p">:</span><span class="w"> </span><span class="l">root</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l">root</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;0644&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Remove existing API server cert files to force regeneration from config</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.file</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;{{ item }}&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">state</span><span class="p">:</span><span class="w"> </span><span class="l">absent</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">loop</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">/etc/kubernetes/pki/apiserver.crt</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">/etc/kubernetes/pki/apiserver.key</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Regenerate API server certificate from kubeadm config</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.command</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;kubeadm init phase certs apiserver --config {{ kubeadm_config_file }}&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Upload kubeadm ClusterConfiguration to kubeadm-config ConfigMap</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.command</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;kubeadm init phase upload-config kubeadm --config {{ kubeadm_config_file }}&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l">inventory_hostname == groups[&#39;masters&#39;][0]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Regenerate API server static pod manifest from kubeadm config</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.command</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;kubeadm init phase control-plane apiserver --config {{ kubeadm_config_file }}&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Force restart of kube-apiserver static pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.command</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;mv /etc/kubernetes/manifests/kube-apiserver.yaml /opt/kubernetes/manifests/kube-apiserver.yaml&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Wait until old kube-apiserver container is removed</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.shell</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;ctr -n k8s.io containers list | grep kube-apiserver || true&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">register</span><span class="p">:</span><span class="w"> </span><span class="l">old_apiserver_container</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">retries</span><span class="p">:</span><span class="w"> </span><span class="m">18</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">delay</span><span class="p">:</span><span class="w"> </span><span class="m">5</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">until</span><span class="p">:</span><span class="w"> </span><span class="l">old_apiserver_container.stdout == &#34;&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">changed_when</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Restore kube-apiserver manifest to recreate static pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.command</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;mv /opt/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/manifests/kube-apiserver.yaml&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">args</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">removes</span><span class="p">:</span><span class="w"> </span><span class="l">/opt/kubernetes/manifests/kube-apiserver.yaml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Wait for API server to become ready</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">ansible.builtin.shell</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="cl"><span class="sd">    export KUBECONFIG=/etc/kubernetes/admin.conf
+</span></span></span><span class="line"><span class="cl"><span class="sd">    kubectl get --raw=&#39;/readyz&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">register</span><span class="p">:</span><span class="w"> </span><span class="l">apiserver_ready</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">retries</span><span class="p">:</span><span class="w"> </span><span class="m">18</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">delay</span><span class="p">:</span><span class="w"> </span><span class="m">10</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">until</span><span class="p">:</span><span class="w"> </span><span class="l">apiserver_ready.rc == 0 and (&#39;ok&#39; in apiserver_ready.stdout)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">changed_when</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>The order matters more than it looks. In particular:</p>
+<ul>
+<li>We delete <code>apiserver.crt</code>/<code>apiserver.key</code> <strong>before</strong> running <code>kubeadm init phase certs apiserver</code>. Kubeadm otherwise sees an existing cert and no-ops.</li>
+<li><code>upload-config kubeadm</code> runs on exactly one master (<code>groups['masters'][0]</code>). Without that guard, three masters race to write the same <code>kubeadm-config</code> ConfigMap.</li>
+<li>The manifest is moved out of <code>/etc/kubernetes/manifests</code> and then back in. The kubelet watches that directory as its trigger for static-pod restart; a plain <code>restart</code> of the container won’t pick up a new mounted file. Moving the manifest out kills the pod, moving it back in recreates it against the updated config.</li>
+</ul>
+<p>Once <code>/readyz</code> returns <code>ok</code>, the api-server is running with the new SAN, the new <code>authentication-config</code>, and the OIDC gate is live.</p>
+<h2 id="the-scroll-of-permissions-rbac-for-oidc-groups"><strong>The Scroll of Permissions: RBAC for OIDC Groups</strong></h2>
+<p>At this point a validly-authenticated Dex user can reach the api-server, but they can’t do anything — no bindings, no permissions. That’s intentional. RBAC is where per-customer policy actually lives.</p>
+<p>Because our <code>claimMappings.groups</code> mapped Dex groups to <code>oidc:&lt;group&gt;</code>, and we bind against those group names directly. The default set we ship gives read-only access, plus targeted <code>exec</code> and <code>port-forward</code> on pods in the <code>default</code> namespace:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">rbac.authorization.k8s.io/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">RoleBinding</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">oidc-kubectl-readonly</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">default</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">roleRef</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">apiGroup</span><span class="p">:</span><span class="w"> </span><span class="l">rbac.authorization.k8s.io</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ClusterRole</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">view</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">subjects</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl">- <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Group</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">oidc:kubectl-reader</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">apiGroup</span><span class="p">:</span><span class="w"> </span><span class="l">rbac.authorization.k8s.io</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Three separate groups, three separate <code>RoleBinding</code>s, all namespaced to <code>default</code>. That gives us fine-grained knobs — a customer that only needs to <code>kubectl logs -f</code> a pod gets slotted into <code>...-kubectl-reader</code> alone, and can’t suddenly <code>exec</code> into a pod because someone forgot to remove them from another group.</p>
+<p>We use <code>ClusterRole</code> even for namespaced permissions because it’s reusable across bindings (the built-in <code>view</code> ClusterRole is the canonical example); the <code>RoleBinding</code> is what actually scopes the grant to the <code>default</code> namespace.</p>
+<p>For customers that need broader access, we template out variations of this file — more namespaces, additional verbs, or a <code>ClusterRoleBinding</code> where they genuinely need cluster-wide read. The mental model stays the same: <strong>Dex groups in, RBAC subjects out</strong>.</p>
+<h2 id="handing-the-key-to-the-customer-the-kubeconfig"><strong>Handing the Key to the Customer: The Kubeconfig</strong></h2>
+<p>The last piece is the artifact the customer actually uses. We generate it once on the cluster and hand it over — no shared secret embedded, no static token, just a pointer to the OIDC flow they’ll complete on their own machine.</p>
+<p>First, they need <code>kubectl</code> with the <a href="https://github.com/int128/kubelogin"><code>oidc-login</code></a> plugin (installed via <code>krew</code>):</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="o">(</span>
+</span></span><span class="line"><span class="cl">  <span class="nb">set</span> -x<span class="p">;</span> <span class="nb">cd</span> <span class="s2">&#34;</span><span class="k">$(</span>mktemp -d<span class="k">)</span><span class="s2">&#34;</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">  <span class="nv">OS</span><span class="o">=</span><span class="s2">&#34;</span><span class="k">$(</span>uname <span class="p">|</span> tr <span class="s1">&#39;[:upper:]&#39;</span> <span class="s1">&#39;[:lower:]&#39;</span><span class="k">)</span><span class="s2">&#34;</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">  <span class="nv">ARCH</span><span class="o">=</span><span class="s2">&#34;</span><span class="k">$(</span>uname -m <span class="p">|</span> sed -e <span class="s1">&#39;s/x86_64/amd64/&#39;</span> -e <span class="s1">&#39;s/\(arm\)\(64\)\?.*/\1\2/&#39;</span> -e <span class="s1">&#39;s/aarch64$/arm64/&#39;</span><span class="k">)</span><span class="s2">&#34;</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">  <span class="nv">KREW</span><span class="o">=</span><span class="s2">&#34;krew-</span><span class="si">${</span><span class="nv">OS</span><span class="si">}</span><span class="s2">_</span><span class="si">${</span><span class="nv">ARCH</span><span class="si">}</span><span class="s2">&#34;</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">  curl -fsSLO <span class="s2">&#34;https://github.com/kubernetes-sigs/krew/releases/latest/download/</span><span class="si">${</span><span class="nv">KREW</span><span class="si">}</span><span class="s2">.tar.gz&#34;</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">  tar zxvf <span class="s2">&#34;</span><span class="si">${</span><span class="nv">KREW</span><span class="si">}</span><span class="s2">.tar.gz&#34;</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">  ./<span class="si">${</span><span class="nv">KREW</span><span class="si">}</span> install krew
+</span></span><span class="line"><span class="cl"><span class="o">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># install kube-oidc-login plugin</span>
+</span></span><span class="line"><span class="cl"><span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">KREW_ROOT</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.krew</span><span class="si">}</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="cl">kubectl krew install oidc-login
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Then, on the cluster, we grab the CA data from an existing admin kubeconfig and emit a customer-facing one:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># 1. Grab the certificate data</span>
+</span></span><span class="line"><span class="cl"><span class="nv">CERT_DATA</span><span class="o">=</span><span class="k">$(</span>kubectl config view --raw --minify -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.clusters[0].cluster.certificate-authority-data}&#39;</span><span class="k">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 2. Write the config to a file</span>
+</span></span><span class="line"><span class="cl">cat <span class="s">&lt;&lt;EOF &gt; kubeconfig.yaml
+</span></span></span><span class="line"><span class="cl"><span class="s">apiVersion: v1
+</span></span></span><span class="line"><span class="cl"><span class="s">kind: Config
+</span></span></span><span class="line"><span class="cl"><span class="s">clusters:
+</span></span></span><span class="line"><span class="cl"><span class="s">  - name: kubernetes
+</span></span></span><span class="line"><span class="cl"><span class="s">    cluster:
+</span></span></span><span class="line"><span class="cl"><span class="s">      server: https://kube-api.domain
+</span></span></span><span class="line"><span class="cl"><span class="s">      certificate-authority-data: &#34;$CERT_DATA&#34;
+</span></span></span><span class="line"><span class="cl"><span class="s">contexts:
+</span></span></span><span class="line"><span class="cl"><span class="s">  - name: kubectl-oidc@kubernetes
+</span></span></span><span class="line"><span class="cl"><span class="s">    context:
+</span></span></span><span class="line"><span class="cl"><span class="s">      cluster: kubernetes
+</span></span></span><span class="line"><span class="cl"><span class="s">      user: kubectl-oidc
+</span></span></span><span class="line"><span class="cl"><span class="s">current-context: kubectl-oidc@kubernetes
+</span></span></span><span class="line"><span class="cl"><span class="s">users:
+</span></span></span><span class="line"><span class="cl"><span class="s">  - name: kubectl-oidc
+</span></span></span><span class="line"><span class="cl"><span class="s">    user:
+</span></span></span><span class="line"><span class="cl"><span class="s">      exec:
+</span></span></span><span class="line"><span class="cl"><span class="s">        apiVersion: client.authentication.k8s.io/v1
+</span></span></span><span class="line"><span class="cl"><span class="s">        command: kubectl
+</span></span></span><span class="line"><span class="cl"><span class="s">        args:
+</span></span></span><span class="line"><span class="cl"><span class="s">          - oidc-login
+</span></span></span><span class="line"><span class="cl"><span class="s">          - get-token
+</span></span></span><span class="line"><span class="cl"><span class="s">          - --grant-type=device-code
+</span></span></span><span class="line"><span class="cl"><span class="s">          - --oidc-issuer-url=https://dex.domain
+</span></span></span><span class="line"><span class="cl"><span class="s">          - --oidc-client-id=kubectl
+</span></span></span><span class="line"><span class="cl"><span class="s">          - --oidc-extra-scope=profile
+</span></span></span><span class="line"><span class="cl"><span class="s">          - --oidc-extra-scope=email
+</span></span></span><span class="line"><span class="cl"><span class="s">          - --oidc-extra-scope=groups
+</span></span></span><span class="line"><span class="cl"><span class="s">EOF</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Two things fall out of this shape:</p>
+<ul>
+<li>The <code>exec</code> credential plugin means <code>kubectl</code> shells out to <code>kubectl oidc-login get-token</code> on every call, caches the token, and refreshes it via the OIDC flow when it expires. No renewals to babysit.</li>
+<li><code>--grant-type=device-code</code> matches the <code>public: true</code> client we registered in Dex. The user sees a URL and a short code, completes the login in their browser, and control returns to their terminal.</li>
+<li>The <code>--oidc-extra-scope=groups</code> is not cosmetic — without it, Dex won’t include the <code>groups</code> claim, and every RBAC binding we set up in the previous section would silently miss.</li>
+</ul>
+<p>The <code>kubeconfig.yaml</code> we send the customer contains no secrets. If they lose it, no one gains any access — the actual gate is still the Dex login. That’s the whole point.</p>
+<h2 id="summary"><strong>Summary</strong></h2>
+<p>The story of exposing <code>kube-apiserver</code> for our customers came down to five moving parts, each doing exactly one job:</p>
+<ol>
+<li><strong>Traefik + <code>IngressRouteTCP</code> with TLS passthrough</strong> — the door. Traefik forwards raw TLS by SNI, so the api-server’s own cert stays the trust anchor. A <code>MiddlewareTCP</code> <code>ipAllowList</code> keeps the public surface small.</li>
+<li><strong>Dex <code>staticClient</code> for <code>kubectl</code></strong> — the herald. A <code>public</code> client that speaks the OAuth device-code flow, no secrets to share.</li>
+<li><strong>Kubeadm <code>AuthenticationConfiguration</code> + extended <code>certSANs</code></strong> — the guard. The api-server learns to trust JWTs from Dex, mapped to <code>oidc:</code> usernames and groups, with a CEL rule that enforces <code>email_verified</code>.</li>
+<li><strong>RBAC <code>RoleBinding</code>s to <code>oidc:...</code> groups</strong> — the scroll. Per-customer permissions are just group memberships in Dex; RBAC decides what each group is allowed to touch.</li>
+<li><strong>A customer-facing kubeconfig using <code>oidc-login</code></strong> — the key. No embedded credentials; the customer authenticates through their own browser every time their token expires.</li>
+</ol>
+<p>Every credential in this chain is short-lived, every permission is declarative, and the customer never holds a secret we can’t revoke by removing them from a group. That was the whole goal — and now <code>kubectl get pods</code> on a customer cluster just works, safely.</p>
+<p>Referenced repositories and files:</p>
+<ul>
+<li>GlueKube: <a href="https://github.com/GlueOps/GlueKube">https://github.com/GlueOps/GlueKube</a></li>
+<li>Cert rotation Ansible task: <a href="https://github.com/GlueOps/GlueKube/blob/main/ansible/roles/master/tasks/rotate-certs-with-config.yaml"><code>ansible/roles/master/tasks/rotate-certs-with-config.yaml</code></a></li>
+<li><code>kubelogin</code> (<code>kubectl oidc-login</code>): <a href="https://github.com/int128/kubelogin">https://github.com/int128/kubelogin</a></li>
+<li>Kubernetes <code>AuthenticationConfiguration</code>: <a href="https://kubernetes.io/docs/reference/access-authn-authz/authentication/#using-authentication-configuration">https://kubernetes.io/docs/reference/access-authn-authz/authentication/#using-authentication-configuration</a></li>
+</ul>
+]]></content:encoded>
+    </item>
     <item>
       <title>The Tale of Kubernetes Loadbalancer &#34;Service&#34; In The Agnostic World of Clouds</title>
       <link>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</link>
@@ -831,11 +1358,11 @@ Metacontroller: <a href="https://metacontroller.github.io/metacontroller/intro.h
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l">enkinineveh.space-tls-prod</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">hosts</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="l">kratos.enkinineveh.space</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nn">...</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nn">...</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">secret</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">secret</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">app-env-secret</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">env</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">env</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">secret</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">CSRF_COOKIE_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;__HOST-kratos.enkinineveh.space&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">COOKIE_SECRET</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;e482c93bc1e9eab3cd65105128b0615accecceeff100c541b06b1698bca6a497&#34;</span><span class="w">
@@ -938,7 +1465,7 @@ Metacontroller: <a href="https://metacontroller.github.io/metacontroller/intro.h
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">oathkeeper</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">oathkeeper</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c"># -- The ORY Oathkeeper configuration. For a full list of available settings, check:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c">#   https://github.com/ory/oathkeeper/blob/master/docs/config.yaml</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">accessRules</span><span class="p">:</span><span class="w"> </span><span class="l">| </span><span class="w">
@@ -1064,7 +1591,7 @@ If you have any idea how to make it work, I will be pleased to talk.</p>
 </span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="s2">&#34;handler&#34;</span><span class="p">:</span><span class="s2">&#34;redirect&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span>}<span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">]</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span>}<span class="w">
+</span></span></span><span class="line"><span class="cl">}<span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>But you may ask yourself if oathkeeper and kratos are two separate services , how can oathkeeper verify the kratos cookie_session ?</p>
@@ -1089,7 +1616,7 @@ If you have any idea how to make it work, I will be pleased to talk.</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">authenticators</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">authenticators</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">cookie_session</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">config</span><span class="p">:</span><span class="w">
@@ -1298,13 +1825,13 @@ Then we reference the image and add the environment variables to <code>values.ya
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">image</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">image</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l">gitea.enkinineveh.space/gitea_admin/post-signup-fn</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l">IfNotPresent</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c"># Overrides the image tag whose default is the chart appVersion.</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;v1&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">env</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">env</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">normal</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">MONGO_URI</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;mongodb://databaseAdmin:sHWKYbXRalmNExTMiYr@my-cluster-name-rs0.mongo.svc.cluster.local/admin?replicaSet=rs0&amp;ssl=false&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">MONGO_TABLE_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;subscribers&#34;</span><span class="w">
@@ -1503,9 +2030,9 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-jsonnet" data-lang="jsonnet"><span class="line"><span class="cl"><span class="k">function</span><span class="p">(</span><span class="nv">ctx</span><span class="p">)</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">if</span><span class="w"> </span><span class="nv">ctx</span><span class="p">.</span><span class="nv">identity</span><span class="p">.</span><span class="nv">traits</span><span class="p">.</span><span class="nv">user_type</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;student&#34;</span><span class="w"> </span><span class="k">then</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nv">ctx</span><span class="p">.</span><span class="nv">identity</span><span class="p">.</span><span class="nv">traits</span><span class="p">.</span><span class="nv">user_type</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&#34;student&#34;</span><span class="w"> </span><span class="k">then</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="k">error</span><span class="w"> </span><span class="s">&#34;cancel&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">else</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="k">else</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nv">&#34;traits&#34;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nv">&#34;email&#34;</span><span class="p">:</span><span class="w"> </span><span class="nv">ctx</span><span class="p">.</span><span class="nv">identity</span><span class="p">.</span><span class="nv">traits</span><span class="p">.</span><span class="nv">email</span><span class="w">
@@ -1744,14 +2271,14 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">image</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">image</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l">gitea.enkinineveh.space/gitea_admin/exam-take-fn</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l">IfNotPresent</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c"># Overrides the image tag whose default is the chart appVersion.</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;v1&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nn">...</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">env</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nn">...</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">env</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">normal</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">BUCKET_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;exams&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">secret</span><span class="p">:</span><span class="w">
@@ -1795,7 +2322,7 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="l">...</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">percona</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l">https://percona.github.io/percona-helm-charts/</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">releases</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">releases</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">   </span><span class="l">...</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">percona-operator</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">percona/psmdb-operator</span><span class="w">
@@ -1824,12 +2351,12 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">psmdb.percona.com/v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PerconaServerMongoDB</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">psmdb.percona.com/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PerconaServerMongoDB</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">mongo-cluster</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">mongo</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">percona/percona-server-mongodb:4.4.6-8</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">replsets</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">rs0</span><span class="w">
@@ -2004,17 +2531,17 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">image</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">image</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l">gitea.enkinineveh.space/gitea_admin/exam-take-frontend</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l">IfNotPresent</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c"># Overrides the image tag whose default is the chart appVersion.</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;v1&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">service</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">service</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l">ClusterIP</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="m">8501</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">ingress</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">ingress</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;nginx&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"> 
@@ -2124,13 +2651,13 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta2</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaConnect</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaConnect</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">connect-cluster</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">strimzi</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strimzi.io/use-connector-resources</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="m">1</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">gitea.enkinineveh.space/gitea_admin/connect-debezium:v2</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">bootstrapServers</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-cluster-kafka-bootstrap.strimzi.svc:9092</span><span class="w">
@@ -2175,13 +2702,13 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta2</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaConnector</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaConnector</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">mongodb-source-connector-second</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">strimzi</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strimzi.io/cluster</span><span class="p">:</span><span class="w"> </span><span class="l">connect-cluster</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">class</span><span class="p">:</span><span class="w"> </span><span class="l">io.debezium.connector.mongodb.MongoDbConnector</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tasksMax</span><span class="p">:</span><span class="w"> </span><span class="m">2</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w">
@@ -2209,14 +2736,14 @@ To achieve this, we will leverage the &ldquo;custom identity schema&rdquo; krato
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaTopic</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaTopic</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">mongo-trigger-topic.exams.score</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">strimzi</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strimzi.io/cluster</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;kafka-cluster&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">partitions</span><span class="p">:</span><span class="w"> </span><span class="m">2</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
@@ -2384,10 +2911,10 @@ We start by initialising the KafkaProducer for sending to email Topic. The <code
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">sources.knative.dev/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaSource</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaSource</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">mongo-source</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-group</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">bootstrapServers</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- {{<span class="w"> </span><span class="l">.Values.env.normal.KAFKA_BOOTSTRAP_SERVER }}</span><span class="w">
@@ -2414,7 +2941,7 @@ We start by initialising the KafkaProducer for sending to email Topic. The <code
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nn">...</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">env</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">env</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">normal</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">KAFKA_BOOTSTRAP_SERVER</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-cluster-kafka-bootstrap.strimzi.svc:9092</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">SOURCE_TOPIC_ARN</span><span class="p">:</span><span class="w"> </span><span class="l">mongo-trigger-topic.exams.score</span><span class="w">
@@ -2505,7 +3032,7 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-operator</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l">https://strimzi.io/charts</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">releases</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">releases</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-operator</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-opertor/strimzi-kafka-operator</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">values</span><span class="p">:</span><span class="w">
@@ -2547,12 +3074,12 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta2</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaNodePool</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaNodePool</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">broker_controller</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strimzi.io/cluster</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-cluster</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="m">3</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">roles</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">broker</span><span class="w">
@@ -2623,15 +3150,15 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta2</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Kafka</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta2</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Kafka</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-cluster</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">strimzi</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strimzi.io/node-pools</span><span class="p">:</span><span class="w"> </span><span class="l">enabled</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strimzi.io/kraft</span><span class="p">:</span><span class="w"> </span><span class="l">enabled</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">kafka</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="m">3.7.1</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c"># The replicas field is required by the Kafka CRD schema while the KafkaNodePools feature gate is in alpha phase.</span><span class="w">
@@ -2691,13 +3218,13 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaTopic</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kafka.strimzi.io/v1beta1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaTopic</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">exam-generator-topic</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strimzi.io/cluster</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;kafka-cluster&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">partitions</span><span class="p">:</span><span class="w"> </span><span class="m">3</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="m">1</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
@@ -2722,7 +3249,7 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="l">...</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">minio-operator</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l">https://operator.min.io</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">releases</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">releases</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="l">...</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">minio-operator</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">minio-operator/operator</span><span class="w">
@@ -2883,10 +3410,10 @@ Visit the frontend app, select an exam, answer the questions, wait for second an
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">batch/v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Job</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Job</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">configure-bucket-notification</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w">
@@ -2994,9 +3521,9 @@ We retrieve the Istio ingress gateway IP address</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl patch configmap/config-domain <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --namespace knative-serving <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --type merge <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --patch <span class="s1">&#39;{&#34;data&#34;:{&#34;kn-functions.enkinineveh.space&#34;:&#34;&#34;}}&#39;</span>
+</span></span></span><span class="line"><span class="cl">  --namespace knative-serving <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --type merge <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --patch <span class="s1">&#39;{&#34;data&#34;:{&#34;kn-functions.enkinineveh.space&#34;:&#34;&#34;}}&#39;</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Good, the serving component is ready, let&rsquo;s move into the event part.</p>
@@ -3037,11 +3564,11 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">serving.knative.dev/v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Service</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Service</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">event-display</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">exam</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w">
@@ -3072,11 +3599,11 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">sources.knative.dev/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaSource</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaSource</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-source</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">exam</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-group</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">bootstrapServers</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">kafka-cluster-kafka-bootstrap.strimzi.svc:909</span><span class="w">
@@ -3246,22 +3773,22 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-dockerfile" data-lang="dockerfile"><span class="line"><span class="cl"><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.10</span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.10</span><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/code</span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="c"># </span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/code</span><span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">COPY</span> ./requirements.txt /code/requirements.txt<span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="c"># </span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="k">COPY</span> ./requirements.txt /code/requirements.txt<span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">RUN</span> pip install --no-cache-dir -r /code/requirements.txt<span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="c"># </span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="k">RUN</span> pip install --no-cache-dir -r /code/requirements.txt<span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">COPY</span> ./ /code/app<span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="c"># </span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="k">COPY</span> ./ /code/app<span class="err">
 </span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># </span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;fastapi&#34;</span><span class="p">,</span> <span class="s2">&#34;run&#34;</span><span class="p">,</span> <span class="s2">&#34;app/app.py&#34;</span><span class="p">,</span> <span class="s2">&#34;--port&#34;</span><span class="p">,</span> <span class="s2">&#34;80&#34;</span><span class="p">]</span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="c"># </span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;fastapi&#34;</span><span class="p">,</span> <span class="s2">&#34;run&#34;</span><span class="p">,</span> <span class="s2">&#34;app/app.py&#34;</span><span class="p">,</span> <span class="s2">&#34;--port&#34;</span><span class="p">,</span> <span class="s2">&#34;80&#34;</span><span class="p">]</span><span class="err">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>requiremtents.txt</p>
@@ -3344,10 +3871,10 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">sources.knative.dev/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaSource</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">KafkaSource</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-source</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l">kafka-group</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">bootstrapServers</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- {{<span class="w"> </span><span class="l">.Values.env.normal.KAFKA_BOOTSTRAP_SERVER }}</span><span class="w">
@@ -3496,11 +4023,11 @@ We first install the 2 yaml files: <strong>CRDs</strong> and <strong>Core</stron
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-tpl" data-lang="tpl"><span class="line"><span class="cl"><span class="cp">{{</span><span class="o">-</span> <span class="na">define</span> <span class="s2">&#34;helpers.list-env-variables&#34;</span><span class="cp">}}</span><span class="x">
-</span></span></span><span class="line"><span class="cl"><span class="x"></span><span class="cp">{{</span><span class="o">-</span> <span class="na">range</span> <span class="nv">$key</span><span class="o">,</span> <span class="nv">$val</span> <span class="o">:=</span> <span class="o">.</span><span class="na">Values</span><span class="o">.</span><span class="na">env</span><span class="o">.</span><span class="na">normal</span> <span class="cp">}}</span><span class="x">
+</span></span></span><span class="line"><span class="cl"><span class="cp">{{</span><span class="o">-</span> <span class="na">range</span> <span class="nv">$key</span><span class="o">,</span> <span class="nv">$val</span> <span class="o">:=</span> <span class="o">.</span><span class="na">Values</span><span class="o">.</span><span class="na">env</span><span class="o">.</span><span class="na">normal</span> <span class="cp">}}</span><span class="x">
 </span></span></span><span class="line"><span class="cl"><span class="x">- name: </span><span class="cp">{{</span> <span class="nv">$key</span> <span class="cp">}}</span><span class="x">
 </span></span></span><span class="line"><span class="cl"><span class="x">  value: </span><span class="cp">{{</span> <span class="nv">$val</span> <span class="cp">}}</span><span class="x">
-</span></span></span><span class="line"><span class="cl"><span class="x"></span><span class="cp">{{</span><span class="o">-</span> <span class="na">end</span><span class="cp">}}</span><span class="x">
-</span></span></span><span class="line"><span class="cl"><span class="x"></span><span class="cp">{{</span><span class="o">-</span> <span class="na">end</span> <span class="cp">}}</span><span class="x">
+</span></span></span><span class="line"><span class="cl"><span class="cp">{{</span><span class="o">-</span> <span class="na">end</span><span class="cp">}}</span><span class="x">
+</span></span></span><span class="line"><span class="cl"><span class="cp">{{</span><span class="o">-</span> <span class="na">end</span> <span class="cp">}}</span><span class="x">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Pass it in helmfile, apply the chart</p>
@@ -3875,7 +4402,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">helmDefaults</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">createNamespace</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">releases</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">releases</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">kratos-ui</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l">./kratos-ui/charts</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">auth</span><span class="w">
@@ -4176,7 +4703,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">config</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">dsn</span><span class="p">:</span><span class="w"> </span><span class="l">postgres://hydra:hydra@cluster-pg-rw.cnpg-system:5432/hydra</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">automigration</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">automigration</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
@@ -4277,8 +4804,8 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client --name frontend-backend-client --audience backend-service<span class="se">\ </span>--endpoint http://localhost:4445 --grant-type authorization_code,refresh_token <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid --skip-consent <span class="nb">true</span> --skip-logout-consent <span class="nb">true</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --token-endpoint-auth-method client_secret_post
+</span></span></span><span class="line"><span class="cl">    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid --skip-consent <span class="nb">true</span> --skip-logout-consent <span class="nb">true</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --token-endpoint-auth-method client_secret_post
 </span></span></code></pre></td></tr></table>
 </div>
 </div><div class="highlight"><div class="chroma">
@@ -4288,7 +4815,7 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client  --name internal-communication --audience internal-service --endpoint http://localhost:4445 --grant-type client_credentials <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>     --token-endpoint-auth-method client_secret_basic --scope offline_access,openid,location:read
+</span></span></span><span class="line"><span class="cl">     --token-endpoint-auth-method client_secret_basic --scope offline_access,openid,location:read
 </span></span></code></pre></td></tr></table>
 </div>
 </div><div class="highlight"><div class="chroma">
@@ -4299,8 +4826,8 @@ We clone the project, build it and push to a registry. either you deploy it to r
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">  hydra create oauth2-client --name third-party --audience backend-service<span class="se">\ </span>--endpoint http://localhost:4445 --grant-type authorization_code,refresh_token <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid,location:read<span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --token-endpoint-auth-method client_secret_post
+</span></span></span><span class="line"><span class="cl">    --response-type code --redirect-uri http://localhost:8000/oauth-redirect --scope offline_access,openid,location:read<span class="se">\
+</span></span></span><span class="line"><span class="cl">    --token-endpoint-auth-method client_secret_post
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>The first client will settle between the frontend and backend. After the user registers, they don&rsquo;t need to approve a certain consent because they are dealing with their own data through our trusted app. Then an authorization code will be sent to the redirect URL in the frontend and it will be sent back to the backend for access and refresh token exchange.</p>
@@ -4518,7 +5045,7 @@ So here is the added code:</p>
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="c"># Global configuration file oathkeeper.yml</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">mutators</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">mutators</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">header</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c"># Set enabled to true if the authenticator should be enabled and false to disable the authenticator. Defaults to false.</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
@@ -4668,7 +5195,7 @@ So here is the added code:</p>
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="s2">&#34;handler&#34;</span><span class="p">:</span><span class="s2">&#34;json&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>}<span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="p">]</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span>}<span class="w">
+</span></span></span><span class="line"><span class="cl">}<span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>I will not show you how to install Istio because this is outside the article&rsquo;s scope, but you can follow their documentation; it is easy and comprehensive.</p>
@@ -4918,13 +5445,13 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;log&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;go.etcd.io/bbolt&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Open the BoltDB database file</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">bbolt</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;db&#34;</span><span class="p">,</span><span class="w"> </span><span class="mo">0600</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
@@ -4952,7 +5479,7 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Key deleted successfully&#34;</span><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
 </div><p>Now, we can reset the etcd node and then recover from the backup db</p>
@@ -5004,10 +5531,10 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --create-namespace <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --namespace nfs-provisioner <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --set nfs.server<span class="o">=</span>192.168.1.109 <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>  --set nfs.path<span class="o">=</span>/srv/public/nfs
+</span></span></span><span class="line"><span class="cl">  --create-namespace <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --namespace nfs-provisioner <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --set nfs.server<span class="o">=</span>192.168.1.109 <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --set nfs.path<span class="o">=</span>/srv/public/nfs
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Then we create a PVC, linking it to the storageClassName:</p>
@@ -5030,13 +5557,13 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PersistentVolumeClaim</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PersistentVolumeClaim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-test</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">storage.k8s.io/name</span><span class="p">:</span><span class="w"> </span><span class="l">nfs</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">storage.k8s.io/part-of</span><span class="p">:</span><span class="w"> </span><span class="l">kubernetes-complete-reference</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">accessModes</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">ReadWriteMany</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">storageClassName</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-client</span><span class="w">
@@ -5061,10 +5588,10 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Pod</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">task-pv-pod</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">task-pv-storage</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">persistentVolumeClaim</span><span class="p">:</span><span class="w">
@@ -5093,10 +5620,10 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">create</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">claimName</span><span class="p">:</span><span class="w"> </span><span class="l">nfs-test</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">postgresql-ha</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">postgresql-ha</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">postgresql</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">postgresql</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span></code></pre></td></tr></table>
 </div>
@@ -5417,8 +5944,8 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl create secret tls gitea-secret <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --key gitea.homelab.local-key.pem <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --cert gitea.homelab.local.pem
+</span></span></span><span class="line"><span class="cl">    --key gitea.homelab.local-key.pem <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --cert gitea.homelab.local.pem
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Finally, we append the gitea-secret into the ingress by changing the gitea-values.yaml file:</p>
@@ -5492,13 +6019,13 @@ We asked ChatGPT for deleting the key <strong>920c1b791dddb17e</strong> from mem
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">apps/v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Deployment</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">apps/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Deployment</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">app-deployment</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">app</span><span class="w">
@@ -5558,11 +6085,11 @@ you may notice in the events section that it&rsquo;s stating pulling the image h
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ConfigMap</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ConfigMap</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">coredns</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">kube-system</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">data</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">data</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">Corefile</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
 </span></span></span><span class="line"><span class="cl"><span class="sd">    .:53 {
 </span></span></span><span class="line"><span class="cl"><span class="sd">        errors

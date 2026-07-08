@@ -1,11 +1,45 @@
+
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>hamzabouissi.github.io/tags/ccm/</loc>
-    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
-  </url><url>
     <loc>hamzabouissi.github.io/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/dex/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/posts/expose-api-server-rbac/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/kube-apiserver/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/kubeadm/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/kubectl/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/kubernetes/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/oidc/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/posts/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/rbac/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/traefik/</loc>
+    <lastmod>2026-07-08T15:24:10+01:00</lastmod>
+  </url><url>
+    <loc>hamzabouissi.github.io/tags/ccm/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
     <loc>hamzabouissi.github.io/tags/cloud-agnostic/</loc>
@@ -20,9 +54,6 @@
     <loc>hamzabouissi.github.io/tags/haproxy/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
-    <loc>hamzabouissi.github.io/tags/kubernetes/</loc>
-    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
-  </url><url>
     <loc>hamzabouissi.github.io/tags/loadbalancer/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
@@ -33,12 +64,6 @@
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
     <loc>hamzabouissi.github.io/tags/metlalb/</loc>
-    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
-  </url><url>
-    <loc>hamzabouissi.github.io/posts/</loc>
-    <lastmod>2025-12-31T00:00:00+01:00</lastmod>
-  </url><url>
-    <loc>hamzabouissi.github.io/tags/</loc>
     <lastmod>2025-12-31T00:00:00+01:00</lastmod>
   </url><url>
     <loc>hamzabouissi.github.io/posts/cloud_agnostic_lb_for_kubernetes/</loc>
